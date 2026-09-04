@@ -6,9 +6,9 @@ import { Draw } from 'Control/draw.js';
 import { Factory } from 'Control/factory.js'
 import { Mouse } from 'Control/input.js';
 import { Resize, Scale } from 'Control/transformation.js';
-import { Case } from './case.js';
+import { CaseIso } from './caseIso.js';
 
-export class MapIso extends Control{
+export class MapView extends Control{
     //grap : Gestion du déplacement de la vue ("grab" pour saisir/déplacer) 
      #grap = {x:0, y:0, adjustment:{x:0,y:0}, border:25, step:25, modified:false, rolled:0};
     //wallCeil : Mode d'affichage des murs et plafonds
@@ -22,6 +22,8 @@ export class MapIso extends Control{
     //selectedMouse : Gestion des pouvoirs/actions avec limitation de portée.
     #selectedMouse = {power:null, target:"",x:0,y:0,z:0, range:3};
 
+    // Carte voxel (cubes + permanents). Remplace l'ancien PageInfo.Map.
+    #map = null;
     //entitys : Tableau des entités dynamiques (personnages, objets mobiles)
     #entitys = new Array();
     //entitysDraw : Tableau optimisé des entités pour l'affichage
@@ -44,7 +46,6 @@ export class MapIso extends Control{
     #createCubes = false;
     //createEntityDraw : Flag indiquant qu'il faut recalculer l'affichage des entités
     #createEntityDraw = true;
-
 
     //case : Représente la position d'une case sur la grille isométrique
     #case = {x:0,y:0, adjustment:{x:0,y:0}};
@@ -71,15 +72,13 @@ export class MapIso extends Control{
 
     initialize(){
         super.initialize();
-        this.#sizeCase = this.sizeCaseFrame(); 
-        this.createCases();
+        this.modify();
     }
     tick(){
         super.tick();
         if(this.#modified)
             this.modify();
     }
-
     get case(){ return this.#case; }
     set case(value){ this.#case = value; }
     get location(){ return this.#location; }
@@ -89,7 +88,8 @@ export class MapIso extends Control{
     get nbrCases(){ return this.#nbrCases; }
     set nbrCases(value){ 
         value < 1 ? value = 1 : this.#nbrCases = value; 
-        this.#sizeCase = this.sizeCaseFrame(); 
+        //this.#sizeCase = this.sizeCaseFrame(); 
+        this.modified();
     }
 
     //set sizeCase(value){ this.#sizeCase = value; }
@@ -108,6 +108,8 @@ export class MapIso extends Control{
     get selectedMulti(){ return this.#selectedMulti; }
     get selectedMouse(){ return this.#selectedMouse; }
     //get cases3D(){ return this.#cases3D; }
+    get map(){ return this.#map; }
+    set map(value){ this.#map = value; } // assigner avant createCubes / findEntityID
     get entitys(){ return this.#entitys; }
     get entitysDraw(){ return this.#entitysDraw; }
     get permanentsDraw(){ return this.#permanentsDraw; }
@@ -122,11 +124,12 @@ export class MapIso extends Control{
 
     modified(){ this.#modified = true; }
     modify(){
-        this.#sizeCase = this.sizeCaseFrame(); 
+        this.#sizeCase = this.sizeCaseFrame();
+        this.createCases();
     }
 
     newCase(x, y ){
-        const c = new Case(x, y);
+        const c = CoreIso.FactoryElementIso.createCase(x, y);
         c.screen = this.screenFromCase(x, y );
         return c;
     }
@@ -274,9 +277,14 @@ export class MapIso extends Control{
 
 
     
+    /**
+     * Remplit chaque case visible avec la colonne de cubes monde.
+     * px/py : origine caméra + offset case, moins z caméra (parallaxe).
+     * À z croissant on ajoute z à x et y : un étage « recule » en iso.
+     */
     createCubes()
     {
-        if(PageInfo.Map == null)return;
+        if(this.map == null)return;
         for(let i = 0; i < this.cases.length; i++)
         {
             const C2D = this.cases[i];
@@ -287,8 +295,8 @@ export class MapIso extends Control{
 
             for (let z = 0; z <= this.maxZ; z++)
             {
-                c = FindCube(px + z, py + z, z);
-                if(c != null && !Contains_NoCeiling(c.X, c.Y, c.Z))
+                c = this.findCube(px + z, py + z, z);
+                if(c != null && !this.containsNoCeiling(c.x, c.y, c.z))
                         C2D.cubes[C2D.cubes.length] = c;
             }
 
@@ -421,7 +429,7 @@ export class MapIso extends Control{
         if(C2D != null && C2D.cubes.length > 0 )
         {
         // S'il y a des cubes dans la case, prend le cube le plus haut
-            let topCube = C3D.cubes[C3D.cubes.length-1];
+            let topCube = C2D.cubes[C2D.cubes.length-1];
             x = topCube.x;
             y = topCube.y;
             z = topCube.z;
@@ -450,22 +458,22 @@ export class MapIso extends Control{
             if(entity != null)
             {
                 // Limite la position X dans la portée autorisée
-                if(x - entity.X > this.selectedMouse.range)
-                    x = entity.X + this.selectedMouse.range;
-                else if(x - entity.X < -this.selectedMouse.range)
-                    x = entity.X - this.selectedMouse.range;
+                if(x - entity.x > this.selectedMouse.range)
+                    x = entity.x + this.selectedMouse.range;
+                else if(x - entity.x < -this.selectedMouse.range)
+                    x = entity.x - this.selectedMouse.range;
                 
                 // Limite la position Y dans la portée autorisée
-                if(y - entity.Y > this.selectedMouse.range)
-                    y = entity.Y + this.selectedMouse.range;
-                else if(y - entity.Y < -this.selectedMouse.range)
-                    y = entity.Y - this.selectedMouse.range;
+                if(y - entity.y > this.selectedMouse.range)
+                    y = entity.y + this.selectedMouse.range;
+                else if(y - entity.y < -this.selectedMouse.range)
+                    y = entity.y - this.selectedMouse.range;
                 
                 // Limite la position Z dans la portée autorisée
-                if(z - entity.Z > this.selectedMouse.range)
-                    z = entity.Z + this.selectedMouse.range;
-                else if(z - entity.Z < -this.selectedMouse.range)
-                    z = entity.Z - this.selectedMouse.range;
+                if(z - entity.z > this.selectedMouse.range)
+                    z = entity.z + this.selectedMouse.range;
+                else if(z - entity.z < -this.selectedMouse.range)
+                    z = entity.z - this.selectedMouse.range;
             }
         }
 
@@ -482,40 +490,36 @@ export class MapIso extends Control{
         this.selectedMouse.target = "";  // Réinitialise la cible
         let target = null;
     
-        // Recherche d'abord dans les entités permanentes (bâtiments, objets fixes)
-        for( let p = 0; p < this.map.permanents.length; p++)
-            if( this.map.permanents[p] != null && 
-                this.map.permanents[p].CanTarget && 
-                this.Contains_Entity(this.map.permanents[p], this.selectedMouse.x, this.selectedMouse.y, this.selectedMouse.z) )
-                target = this.map.permanents[p];
+        const permanents = this.map.permanents ?? this.map.Permanents ?? [];
+        // D'abord les décors ciblables, puis les mobiles (un bâtiment masque un perso au même cube).
+        for( let p = 0; p < permanents.length; p++)
+            if( permanents[p] != null && 
+                permanents[p].canTarget && 
+                this.contains_Entity(permanents[p], this.selectedMouse.x, this.selectedMouse.y, this.selectedMouse.z) )
+                target = permanents[p];
     
-        // Si aucune entité permanente trouvée, recherche dans les entités mobiles
         if(target == null)
             for( let t = 0; t < this.entitys.length; t++)
                 if( this.entitys[t] != null && 
-                    this.entitys[t].CanTarget && 
-                    this.Contains_Entity(this.entitys[t], this.selectedMouse.x, this.selectedMouse.y, this.selectedMouse.z) )
+                    this.entitys[t].canTarget && 
+                    this.contains_Entity(this.entitys[t], this.selectedMouse.x, this.selectedMouse.y, this.selectedMouse.z) )
                 target = this.entitys[t];
     
         if(target != null){
-        // Cible trouvée par collision 3D
-            this.selectedMouse.target = target.ID;
+            this.selectedMouse.target = target.id;
         } else {
-        // === RECHERCHE PAR COLLISION 2D ÉCRAN (FALLBACK) ===
+            // Pas de hit 3D : rectangle sprite (utile si le volume voxel est petit).
+            const inside = this.Mouse.inside();
+            let mx = inside.x;
+            let my = inside.y;
         
-        // Calcule la position de la souris relative au formulaire
-            let mx = Core.mouse.x - FormBase.Position.X;
-            let my = Core.mouse.y - FormBase.Position.Y;
-        
-        // Parcourt toutes les entités dessinées pour une collision pixel
-            for(let i = 0; i < this.entitysdraw.length; i++){
-            // Teste si la souris est dans le rectangle de l'entité à l'écran
-                if(this.entitysdraw[i].screen.x < mx && 
-                   mx < this.entitysdraw[i].screen.x + this.entitysdraw[i].width && 
-                   this.entitysdraw[i].screen.y < my && 
-                   my < this.entitysdraw[i].screen.y + this.entitysdraw[i].height){
-                    this.selectedMouse.target = this.entitysdraw[i].id;
-                    break;  // Prend la première entité trouvée
+            for(let i = 0; i < this.entitysDraw.length; i++){
+                if(this.entitysDraw[i].screen.x < mx && 
+                   mx < this.entitysDraw[i].screen.x + this.entitysDraw[i].width && 
+                   this.entitysDraw[i].screen.y < my && 
+                   my < this.entitysDraw[i].screen.y + this.entitysDraw[i].height){
+                    this.selectedMouse.target = this.entitysDraw[i].id;
+                    break;
                 }
             }
         }
@@ -532,41 +536,28 @@ export class MapIso extends Control{
  * 4. Met à jour les références dans l'objet Target global
  */
     onTarget(){
-    // === IDENTIFICATION DE LA CASE ET DU CUBE CIBLE ===
+        let C2D = this.findCase(this.case.x, this.case.y);
+        this.target.case = C2D;
     
-        let C2D = this.findCase(Case.X, Case.Y);  // Case 3D sous le curseur
-        this.target.case = C2D;                   // Stocke la référence de la case
-    
+        // Sol = cube traversable le plus haut de la colonne (CaseIso.toFloors).
         if(C2D != null) 
-            this.target.cube = C2D.ToFloors();    // Trouve le cube sol de la case
+            this.target.cube = C2D.toFloors();
         else 
-            this.target.cube = null;              // Aucune case valide
+            this.target.cube = null;
     
-    // === RECHERCHE D'ENTITÉ PAR COLLISION ÉCRAN ===
+        this.target.id = "";
     
-        this.target.id = "";  // Réinitialise l'ID de l'entité ciblée
-    
-    // Copie locale pour éviter les modifications concurrentes
-        let temp_EntitysDraw = this.entitysdraw;
-    
-    // Position de la souris relative au formulaire
-        //let mx = Mouse.X - FormBase.Position.X;
-        //let my = Mouse.Y - FormBase.Position.Y;
-        let mx = this.Mouse.inside.x;
-        let my = this.Mouse.inside.y;
-    // Parcourt toutes les entités dessinées
+        let temp_EntitysDraw = this.entitysDraw;
+        const inside = this.Mouse.inside();
+        let mx = inside.x;
+        let my = inside.y;
         for(let d = 0; d < temp_EntitysDraw.length; d++){
-        // TODO: Créer une fonction pour vérifier si le personnage peut être ciblé
-        // TODO: Vérifier la transparence sur le Template
-        // TODO: Vérifier si le personnage est visible avec NoCeiling
-        
-        // Test de collision rectangle : souris dans les limites de l'entité
-            if(temp_EntitysDraw[d].Screen.X < mx && 
-                mx < temp_EntitysDraw[d].Screen.X + temp_EntitysDraw[d].Width && 
-                temp_EntitysDraw[d].Screen.Y < my && 
-                my < temp_EntitysDraw[d].Screen.Y + temp_EntitysDraw[d].Height){
-                this.target.id = temp_EntitysDraw[d].id;  // Entité trouvée
-                break;  // Prend la première entité trouvée (ordre Z-index)
+            if(temp_EntitysDraw[d].screen.x < mx && 
+                mx < temp_EntitysDraw[d].screen.x + temp_EntitysDraw[d].width && 
+                temp_EntitysDraw[d].screen.y < my && 
+                my < temp_EntitysDraw[d].screen.y + temp_EntitysDraw[d].height){
+                this.target.id = temp_EntitysDraw[d].id;
+                break;
             }
         }
     };
@@ -576,77 +567,49 @@ export class MapIso extends Control{
  * Crée un rectangle de sélection qui s'étendra jusqu'au relâchement
  */
     selectedMulti_Down(){
-        selectedMulti.Active = true;           // Active le mode sélection multiple
-        selected.Multi = [];                   // Vide la sélection précédente
-    
-        // Position initiale du rectangle de sélection (relative au formulaire)
-        selectedMulti.Source.X = Mouse.X - FormBase.Position.X;
-        selectedMulti.Source.Y = Mouse.Y - FormBase.Position.Y;
-        selectedMulti.Destination.X = Mouse.X - FormBase.Position.X;
-        selectedMulti.Destination.Y = Mouse.Y - FormBase.Position.Y;
+        const multi = this.selectedMulti;
+        const inside = this.Mouse.inside();
+        multi.Active = true;
+        this.selected.Multi = [];
+        // Coin départ du rectangle, relatif au contrôle (pas au formulaire).
+        multi.Source.X = inside.x;
+        multi.Source.Y = inside.y;
+        multi.Destination.X = inside.x;
+        multi.Destination.Y = inside.y;
     };
-/**
- * FIN DE LA SÉLECTION MULTIPLE
- * Désactive le mode sélection multiple quand l'utilisateur relâche le bouton
- */
     selectedMulti_Up(){
-        selectedMulti.Active = false;  // Désactive le mode sélection
+        this.selectedMulti.Active = false;
     };
-
-/**
- * MISE À JOUR DE LA SÉLECTION MULTIPLE PENDANT LE GLISSEMENT
- * Calcule quelles entités sont dans le rectangle de sélection pendant le mouvement
- * 
- * ALGORITHME :
- * 1. Met à jour la position de destination du rectangle
- * 2. Teste chaque entité pour voir si elle intersecte le rectangle
- * 3. Vérifie que l'entité est bien un joueur sélectionnable
- * 4. Ajoute l'entité à la liste de sélection multiple
- */
+    /** Recalcule selected.Multi : toute EntityDraw dont le sprite coupe le rectangle. */
     selectedMulti_Move(){
-        selected.Multi = [];  // Recalcule la sélection à chaque mouvement
-    
-        // Met à jour la position de destination du rectangle
-        selectedMulti.Destination.X = Mouse.X - FormBase.Position.X;
-        selectedMulti.Destination.Y = Mouse.Y - FormBase.Position.Y;
+        const selected = this.selected;
+        const multi = this.selectedMulti;
+        const inside = this.Mouse.inside();
+        selected.Multi = [];
+        multi.Destination.X = inside.x;
+        multi.Destination.Y = inside.y;
 
-        // Teste chaque entité dessinée
-        for (var i = 0; i < EntitysDraw.length; i++){
-        // === TEST D'INTERSECTION HORIZONTALE ===
-        
-            if(selectedMulti.Source.X < selectedMulti.Destination.X){
-            // Rectangle tiré vers la droite
-            if(EntitysDraw[i].Screen.X > selectedMulti.Destination.X) continue;  // Entité trop à droite
-            if(EntitysDraw[i].Screen.X + EntitysDraw[i].Width < selectedMulti.Source.X) continue;  // Entité trop à gauche
+        for (let i = 0; i < this.entitysDraw.length; i++){
+            const draw = this.entitysDraw[i];
+            if(multi.Source.X < multi.Destination.X){
+            if(draw.screen.x > multi.Destination.X) continue;
+            if(draw.screen.x + draw.width < multi.Source.X) continue;
             }
-            else if(selectedMulti.Source.X > selectedMulti.Destination.X){
-            // Rectangle tiré vers la gauche
-            if(EntitysDraw[i].Screen.X > selectedMulti.Source.X) continue;  // Entité trop à droite
-            if(EntitysDraw[i].Screen.X + EntitysDraw[i].Width < selectedMulti.Destination.X) continue;  // Entité trop à gauche
+            else if(multi.Source.X > multi.Destination.X){
+            if(draw.screen.x > multi.Source.X) continue;
+            if(draw.screen.x + draw.width < multi.Destination.X) continue;
             }
         
-        // === TEST D'INTERSECTION VERTICALE ===
-        
-            if(selectedMulti.Source.Y < selectedMulti.Destination.Y){
-            // Rectangle tiré vers le bas
-            if(EntitysDraw[i].Screen.Y > selectedMulti.Destination.Y) continue;  // Entité trop en bas
-                if(EntitysDraw[i].Screen.Y + EntitysDraw[i].Width < selectedMulti.Source.Y) continue;  // Entité trop en haut
+            if(multi.Source.Y < multi.Destination.Y){
+            if(draw.screen.y > multi.Destination.Y) continue;
+                if(draw.screen.y + draw.width < multi.Source.Y) continue;
             }
-            else if(selectedMulti.Source.Y > selectedMulti.Destination.Y){
-            // Rectangle tiré vers le haut
-                if(EntitysDraw[i].Screen.Y > selectedMulti.Source.Y) continue;  // Entité trop en bas
-                if(EntitysDraw[i].Screen.Y + EntitysDraw[i].Width < selectedMulti.Destination.Y) continue;  // Entité trop en haut
+            else if(multi.Source.Y > multi.Destination.Y){
+                if(draw.screen.y > multi.Source.Y) continue;
+                if(draw.screen.y + draw.width < multi.Destination.Y) continue;
             }
         
-            // === VÉRIFICATION QUE L'ENTITÉ EST UN JOUEUR SÉLECTIONNABLE ===
-        
-            for(var p = 0; p < PageInfo.Players.length; p++){
-                if(PageInfo.Players[p] != EntitysDraw[i].ID) continue;  // N'est pas un joueur
-            
-            // Ajoute le joueur à la sélection multiple
-                Selected.Multi[Selected.Multi.length] = EntitysDraw[i].ID;
-                break;
-            }
+            selected.Multi[selected.Multi.length] = draw.id;
         }
     }
 
@@ -654,132 +617,82 @@ export class MapIso extends Control{
  * RACCOURCI : Obtient l'entité actuellement sélectionnée
  * @returns {Object|null} L'objet entité sélectionnée ou null si aucune sélection
  */
-    selected_Entity(){ return FindEntityID(Selected.ID); };
-/**
- * RACCOURCI : Obtient l'entité actuellement ciblée
- * @returns {Object|null} L'objet entité ciblée ou null si aucune cible
- */
-    selected_Target(){ return FindEntityID(Selected.Target); };
-
-/**
- * TEST DE COLLISION 3D POINT-ENTITÉ
- * Vérifie si un point 3D se trouve à l'intérieur des limites d'une entité
- * 
- * @param {Object} entity - Entité à tester {X, Y, Z, Width, Height}
- * @param {number} pX - Coordonnée X du point à tester
- * @param {number} pY - Coordonnée Y du point à tester  
- * @param {number} pZ - Coordonnée Z du point à tester
- * @returns {boolean} true si le point est dans l'entité, false sinon
- * 
- * GÉOMÉTRIE DE L'ENTITÉ :
- * - Position : (entity.X, entity.Y, entity.Z) est le coin supérieur-droit-arrière
- * - Extension : l'entité s'étend vers les X/Y négatifs et Z positifs
- * - Volume : Width × Width × Height (entités carrées en base)
- */
+    selectedEntity(){ return this.findEntityID(this.selected.ID); };
+    selected_Entity(){ return this.selectedEntity(); };
+    selectedTarget(){ return this.findEntityID(this.selected.Target); };
+    selected_Target(){ return this.selectedTarget(); };
+    /**
+     * Point 3D dans le volume d'une entité.
+     * Délègue à Entity.contains ; sinon lit width/x camelCase ou PascalCase.
+     */
     contains_Entity(entity, pX, pY, pZ){
-        return (pX <= entity.X) && (pX > entity.X - entity.Width)      // Test X : dans la largeur
-        && (pY <= entity.Y) && (pY > entity.Y - entity.Width)      // Test Y : dans la profondeur  
-        && (pZ >= entity.Z) && (pZ < entity.Z + entity.Height);    // Test Z : dans la hauteur
+        if(entity == null) return false;
+        if(typeof entity.contains === "function") return entity.contains(pX, pY, pZ);
+        const width = entity.width ?? entity.Width;
+        const height = entity.height ?? entity.Height;
+        const x = entity.x ?? entity.X;
+        const y = entity.y ?? entity.Y;
+        const z = entity.z ?? entity.Z;
+        return (pX <= x) && (pX > x - width)
+        && (pY <= y) && (pY > y - width)
+        && (pZ >= z) && (pZ < z + height);
     };
-//function Contains_Rectangle( pX, pY, pZ, rectangle)
-//{
-//    return rectangle.X <= pX && pX <= rectangle.X + rectangle.Width
-//        && rectangle.Y <= pY && pY <= rectangle.Y + rectangle.Height
-//        && rectangle.Z <= pZ && pZ <= rectangle.Z + rectangle.Depth;
-//};
-/**
- * RECHERCHE D'UN CUBE DANS LA CARTE
- * Trouve un cube spécifique aux coordonnées données dans la grille 3D de la carte
- * 
- * @param {number} x - Coordonnée X dans la grille de la carte
- * @param {number} y - Coordonnée Y dans la grille de la carte
- * @param {number} z - Coordonnée Z dans la grille de la carte
- * @returns {Object|null} Le cube trouvé ou null si inexistant
- */
+    /** Zones où on ne dessine pas le plafond (vue intérieure). */
+    containsNoCeiling(x, y, z){
+        for(let i = 0; i < this.#noCeiling.length; i++){
+            const n = this.#noCeiling[i];
+            if(n.x == x && n.y == y && n.z == z) return true;
+        }
+        return false;
+    };
+    /** Accès O(1) dans la grille 3D de this.map. Hors limites → null. */
     findCube(x, y, z){
-        if(PageInfo.Map == null) return null;               // Pas de carte chargée
-        if(PageInfo.Map.Cubes.length == 0) return null;    // Grille de cubes vide
-        if(!Contains_Map(x,y,z, PageInfo.Map)) return null; // Coordonnées hors limites
-    
-        return PageInfo.Map.Cubes[x][y][z];  // Accès direct dans la grille 3D
+        if(this.map == null) return null;
+        const cubes = this.map.cubes ?? this.map.Cubes;
+        if(!cubes || cubes.length == 0) return null;
+        if(!this.contains_Map(x,y,z, this.map)) return null;
+        return cubes[x]?.[y]?.[z] ?? null;
     };
-/**
- * VÉRIFICATION DES LIMITES DE LA CARTE
- * Teste si des coordonnées 3D sont dans les limites de la carte
- * 
- * @param {number} pX - Coordonnée X à tester
- * @param {number} pY - Coordonnée Y à tester
- * @param {number} pZ - Coordonnée Z à tester
- * @param {Object} map - Objet carte avec Width, Height, Depth
- * @returns {boolean} true si dans les limites, false sinon
- */
     contains_Map(pX, pY, pZ, map){
-        return 0 <= pX && pX < map.Width &&      // X dans [0, Width[
-           0 <= pY && pY < map.Height &&     // Y dans [0, Height[
-           0 <= pZ && pZ < map.Depth;        // Z dans [0, Depth[
+        const width = map.width ?? map.Width;
+        const height = map.height ?? map.Height;
+        const depth = map.depth ?? map.Depth;
+        return 0 <= pX && pX < width &&
+           0 <= pY && pY < height &&
+           0 <= pZ && pZ < depth;
     };
-/**
- * RECHERCHE D'UNE CASE 3D VISIBLE
- * Trouve une case 3D dans le tableau des cases actuellement visibles à l'écran
- * 
- * @param {number} x - Coordonnée X isométrique de la case
- * @param {number} y - Coordonnée Y isométrique de la case
- * @returns {Case3D|null} La case trouvée ou null si non visible
- */
+    /** Case du viewport (losange affiché), pas un cube monde. */
     findCase(x, y){
-    // Parcours linéaire des cases visibles (optimisé par la limitation du viewport)
-        for(var i = 0; i < Cases3D.length; i++)
-            if ( Cases3D[i].X == x && Cases3D[i].Y == y)
-                return Cases3D[i];
+        for(let i = 0; i < this.cases.length; i++)
+            if ( this.cases[i].x == x && this.cases[i].y == y)
+                return this.cases[i];
         return null;    
     };
-/**
- * RECHERCHE D'UNE CASE À PARTIR D'UNE POSITION ABSOLUE DU MONDE
- * Convertit une position 3D absolue en coordonnées relatives à la caméra,
- * puis trouve la case 3D correspondante
- * 
- * @param {number} x - Position X absolue dans le monde
- * @param {number} y - Position Y absolue dans le monde
- * @param {number} z - Position Z absolue dans le monde
- * @returns {Case3D|null} La case trouvée ou null si non visible
- */
+    /** Monde → case caméra (même parallaxe que screenFromLocation). */
     findCaseLocation(x, y, z){
-    // Conversion position absolue → coordonnées relatives à la caméra avec parallaxe
-        x = x - Location.X - (z - Location.Z);
-        y = y - Location.Y - (z - Location.Z);
-    
-        return FindCase(x,y);  // Recherche dans les cases visibles
+        x = x - this.location.x - (z - this.location.z);
+        y = y - this.location.y - (z - this.location.z);
+        return this.findCase(x,y);
     };
-
-/**
- * RECHERCHE D'UNE ENTITÉ PAR SON IDENTIFIANT
- * Cherche une entité dans les collections d'entités permanentes et mobiles
- * 
- * @param {string} id - Identifiant unique de l'entité
- * @returns {Object|null} L'entité trouvée ou null si inexistante
- * 
- * ORDRE DE RECHERCHE :
- * 1. Entités permanentes de la carte (bâtiments, objets fixes)
- * 2. Entités mobiles (personnages, objets dynamiques)
- */
+    /** Permanents de la carte d'abord, puis #entitys. */
     findEntityID(id){
-    // Recherche d'abord dans les entités permanentes
-        if(PageInfo.Map != null)
-            for( let p = 0; p < PageInfo.Map.Permanents.length; p++)
-                if(PageInfo.Map.Permanents[p].ID == id)
-                    return PageInfo.Map.Permanents[p];
+        if(this.map != null){
+            const permanents = this.map.permanents ?? this.map.Permanents ?? [];
+            for( let p = 0; p < permanents.length; p++)
+                if(permanents[p].id == id)
+                    return permanents[p];
+        }
 
-    // Puis dans les entités mobiles
-        for( let ent = 0; ent < Entitys.length; ent++)
-            if( id == Entitys[ent].ID )
-                return Entitys[ent];
+        for( let ent = 0; ent < this.entitys.length; ent++)
+            if( id == this.entitys[ent].id )
+                return this.entitys[ent];
     
-        return null;  // Entité non trouvée
+        return null;
     };
 
 };
 
-export class DrawMapIso extends Draw {
+export class DrawMapView extends Draw {
     constructor(control){
         super(control);
     }
@@ -895,7 +808,7 @@ export class DrawMapIso extends Draw {
             }
         }
     }
-    drawInfo(){
+    drawInfo(){ //SUPPRIMER!!!
         const paint = this.Paint;
         const control = this.control;
         
@@ -980,10 +893,19 @@ export class ScaleIso extends Scale{
     }
 }
 
-export class FactoryMapIso extends Factory {  
-    createControl(){ return new MapIso(); }
-    createDraw(control){ return new DrawMapIso(control); }
+
+/*
+export class FactoryMapView extends Factory {  
+    createControl(){ return new MapView(this.createFactoryElement()); }
+    createFactoryElement(){ return new FactoryElementIso(); }
+    createDraw(control){ return new DrawMapView(control); }
     createMouse(control){ return new MouseIso(control); }
     createResize(control){ return new ResizeIso(control); }
     createScale(control){ return new ScaleIso(control); }
 }
+
+export class FactoryElementIso{
+    constructor(){}
+    createCase(x, y){ return new Case(x, y); }
+}
+*/

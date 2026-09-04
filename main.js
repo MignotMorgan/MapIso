@@ -1,6 +1,7 @@
 import { FactoryForm } from 'Control/form.js';
-import { FactoryMapIso } from "./mapIso.js";
 import { FactoryControlInfoIso } from "./Control/controlinfoIso.js";
+import { CoreIso } from "./coreIso.js";
+import { FactoryMapView } from './factoryIso.js';
 
 window.onload = ()=>{
     const factoryform = new FactoryForm();
@@ -12,21 +13,21 @@ window.onload = ()=>{
     //form.customTheme.background.color = "#5e5f5fff";
     //form.customTheme.background.border.color = "#0515f0ff";
 
-    const factory = new FactoryMapIso();
-    const mapIso = factory.create(750, 100, 620, 320);
-    mapIso.canMove = true;
-    mapIso.canResize = true;
-    //mapIso.canScale = true;
-    //mapIso.Border.left = 0;
-    //mapIso.Border.top = 0;
-    //mapIso.Border.right = 0;
-    //mapIso.Border.bottom = 0;
-    form.add(mapIso);
+    const factory = new FactoryMapView();
+    const mapView = factory.create(750, 100, 620, 320);
+    mapView.canMove = true;
+    mapView.canResize = true;
+    //mapView.canScale = true;
+    //mapView.Border.left = 0;
+    //mapView.Border.top = 0;
+    //mapView.Border.right = 0;
+    //mapView.Border.bottom = 0;
+    form.add(mapView);
 
     let controlInfoIso = (new FactoryControlInfoIso).create(10, 10, 425, 275);
     controlInfoIso.id = "infoIso";
     controlInfoIso.canMove = true;
     controlInfoIso.canResize = true;
-    controlInfoIso.mapIso = mapIso;
+    controlInfoIso.mapView = mapView;
     form.add(controlInfoIso);
 };

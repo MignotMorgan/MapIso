@@ -1,5 +1,5 @@
 import { CoreIso } from "./coreIso.js";
-export class Case {
+export class CaseIso {
     #x = 0;
     #y = 0;
     #adjustment = {x:0, y:0};
