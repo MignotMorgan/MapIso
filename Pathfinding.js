@@ -1,3 +1,5 @@
+import { Location } from './pointIso.js';
+
 /**
  * Un nœud de recherche : un cube atteint, plus le nœud d'où l'on vient.
  *
@@ -33,7 +35,7 @@ export class Road{
         const street = [];
         let road = this;
         while(road != null){
-            street[street.length] = {x:road.x, y:road.y, z:road.z};
+            street[street.length] = new Location(road.x, road.y, road.z);
             road = road.parent;
         }
         return street.reverse();
@@ -140,8 +142,9 @@ export class Pathfinding{
                 const cube = this.findCube(nx, ny, nz);
                 if(cube == null || !cube.cross) continue;
 
-                // Changement d'étage : les cases d'angle doivent rester franchissables.
-                if(direction.z != 0){
+                // Changement d'étage ou diagonale : on frôle des cases voisines,
+                // il faut vérifier qu'elles laissent passer.
+                if(direction.z != 0 || (direction.x != 0 && direction.y != 0)){
                     const coin = new Coin(road.x, road.y, road.z, direction, (cx, cy, cz) => this.findCube(cx, cy, cz));
                     if(!coin.movement()) continue;
                 }
@@ -164,7 +167,7 @@ export class Pathfinding{
      */
     find(x, y, z, entity = null){
         const road = this.search(x, y, z, entity);
-        if(road == null) return [{x:x, y:y, z:z}];
+        if(road == null) return [new Location(x, y, z)];
         return road.street();
     }
 
@@ -181,10 +184,7 @@ export class Pathfinding{
         const road = this.search(x, y, z, entity);
         if(road == null) return false;
 
-        entity.move.street = road.street();
-        entity.move.step = 0;
-        entity.bodyAnimated = true;             // bascule le sprite en marche
-        return true;
+        return entity.walk(road.street());
     }
 
     /** Les 26 voisins d'une case, construits une seule fois. */
@@ -232,8 +232,14 @@ export class Pathfinding{
 }
 
 /**
- * En montée/descente, les cubes « coin » (axe X, Y, diagonale) doivent rester franchissables.
- * Montée : on teste le palier supérieur ; descente : le palier actuel.
+ * Le passage entre deux cases n'est pas seulement une affaire de départ et
+ * d'arrivée : on frôle des cases voisines en chemin, et elles peuvent barrer
+ * la route. Coin regarde ces cases-là.
+ *
+ * Un cube absent, c'est du vide : le vide ne bloque rien, c'est même par là
+ * qu'on descend d'une plateforme. Seul un cube présent et non franchissable
+ * arrête le mouvement.
+ *
  * findCube est injecté (Pathfinding.findCube) pour ne pas dépendre d'un global.
  */
 export class Coin{
@@ -241,12 +247,15 @@ export class Coin{
     #axeX = null;
     #axeY = null;
     #axeD = null;
+    #head = null;
 
     constructor(x, y, z, d, findCube){
         if (d.z > 0){
+            // On monte : on traverse le palier supérieur, et sa propre verticale.
             this.#axeX = findCube(x + d.x, y, z + d.z);
             this.#axeY = findCube(x, y + d.y, z + d.z);
             this.#axeD = findCube(x + d.x, y + d.y, z + d.z);
+            this.#head = findCube(x, y, z + d.z);
         } else {
             this.#axeX = findCube(x + d.x, y, z);
             this.#axeY = findCube(x, y + d.y, z);
@@ -257,12 +266,18 @@ export class Coin{
     get axeX(){ return this.#axeX; }
     get axeY(){ return this.#axeY; }
     get axeD(){ return this.#axeD; }
+    get head(){ return this.#head; }
+
+    /** Un cube présent et non franchissable barre la route ; le vide non. */
+    static blocked(cube){ return cube != null && !cube.cross; }
 
     movement(){
-        // Diagonale bloquée ou absente → on ne grimpe / ne descend pas.
-        if (this.#axeD == null || !this.#axeD.cross) return false;
-        // Les deux côtés pleins = coin fermé (on passerait à travers un mur).
-        if (this.#axeX != null && !this.#axeX.cross && this.#axeY != null && !this.#axeY.cross) return false;
+        // La case qu'on traverse en chemin.
+        if (Coin.blocked(this.#axeD)) return false;
+        // En montant, on ne passe pas à travers un plafond.
+        if (Coin.blocked(this.#head)) return false;
+        // Les deux côtés pleins = coin fermé, on couperait à travers un mur.
+        if (Coin.blocked(this.#axeX) && Coin.blocked(this.#axeY)) return false;
         return true;
     }
 }

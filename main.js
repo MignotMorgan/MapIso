@@ -28,6 +28,10 @@ window.onload = ()=>{
     mapView.maxZ = demo.depth - 1;
     mapView.moveTo(0, 0, 0);
 
+    // Le héros est sélectionné d'entrée : cliquer sur le sol l'y envoie,
+    // cliquer sur un autre personnage change de sélection.
+    mapView.select("heros");
+
     // Repères de mise au point, à réactiver au besoin.
     mapView.Draw.showGrid = false;
     mapView.Draw.showNumbers = false;

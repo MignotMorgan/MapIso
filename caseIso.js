@@ -1,9 +1,10 @@
 import { CoreIso } from "./coreIso.js";
+import { Point } from "./pointIso.js";
 export class CaseIso {
     #x = 0;
     #y = 0;
-    #adjustment = {x:0, y:0};
-    #screen = {x:0,y:0}
+    #adjustment = new Point();
+    #screen = new Point();
     #cubes = [];
     #entitysDraw = [];
     
@@ -17,7 +18,9 @@ export class CaseIso {
     set y(value){this.#y = value;}
     get adjustment(){return this.#adjustment;}
     get screen(){return this.#screen;}
-    set screen(value){this.#screen = value;}
+    // On recopie dans le point existant : la case garde le sien, personne ne
+    // peut lui glisser un objet d'une autre forme à la place.
+    set screen(value){this.#screen.copy(value);}
     get cubes(){return this.#cubes;}
     set cubes(value){this.#cubes = value;}
     get entitysDraw(){return this.#entitysDraw;}

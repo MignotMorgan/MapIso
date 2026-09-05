@@ -1,46 +1,5 @@
-// Normalise un point 2D. Accepte camelCase (x,y) ou l'ancien JSON (X,Y).
-function point2(value){
-    const v = value ?? {};
-    return { x: v.x ?? v.X ?? 0, y: v.y ?? v.Y ?? 0 };
-}
-// Idem en 3D (monde voxel : x/y sol, z altitude).
-function point3(value){
-    const v = value ?? {};
-    return { x: v.x ?? v.X ?? 0, y: v.y ?? v.Y ?? 0, z: v.z ?? v.Z ?? 0 };
-}
-/**
- * Déplacement logique (chemin BFS, pas l'animation écran).
- * null = l'entité n'a pas d'ordre de marche (pathfinding.moveTo abandonne).
- * street : liste de cubes {x,y,z} du départ à l'arrivée.
- * speed  : durée d'un pas, utilisée par EntityDraw pour interpoler.
- */
-function toMove(value){
-    if(value == null) return null;
-    return {
-        id: value.id ?? value.ID ?? 0,
-        street: value.street ?? value.Street ?? [],
-        speed: value.speed ?? value.Speed ?? 0,
-        step: value.step ?? value.Step ?? 0,
-        body: value.body ?? value.Body ?? null,
-        adjustment: point2(value.adjustment ?? value.Adjustment)
-    };
-}
-/**
- * État d'interpolation visuelle entre deux cubes de street.
- * Toujours créé : même à l'arrêt, location reflète x,y,z de l'entité.
- * index / drawStep / time : progression du segment courant (voir EntityDraw.onDistance).
- */
-function toMoveDraw(value, x, y, z, adjustment){
-    const v = value ?? {};
-    return {
-        location: point3(v.location ?? v.Location ?? {x, y, z}),
-        adjustment: point2(v.adjustment ?? v.Adjustment ?? adjustment),
-        distance: point2(v.distance ?? v.Distance),
-        drawStep: v.drawStep ?? v.DrawStep ?? 0,
-        index: v.index ?? v.Index ?? 0,
-        time: v.time ?? v.Time ?? 0
-    };
-}
+import { Point, Location, Direction } from './pointIso.js';
+import { EntityMove } from './entityMove.js';
 
 /**
  * Modèle monde d'un personnage / objet.
@@ -54,13 +13,11 @@ function toMoveDraw(value, x, y, z, adjustment){
  */
 export class Entity{
     #id = "";
-    #x = 0;
-    #y = 0;
-    #z = 0;
+    #location = null;          // position dans le monde voxel
     #width = 1;
     #height = 1;
-    #adjustment = {x:0, y:0};  // offset dans la case, en % de sizeCube (0..100)
-    #direction = 6;            // 0 N … 7 S-W ; 6 = none (pas de sprite tourné)
+    #adjustment = null;        // offset dans la case, en % de sizeCube (0..100)
+    #direction = Direction.NONE;
     #canMove = false;
     #canTarget = false;
     #cross = false;            // d'autres entités peuvent traverser ce volume
@@ -69,18 +26,15 @@ export class Entity{
     #bodyAnimated = false;
     #map = null;               // carte d'appartenance (pathfinding, collisions)
     #move = null;
-    #moveDraw = null;
 
     constructor(x, y, z, options = {}){
-        this.#x = x;
-        this.#y = y;
-        this.#z = z;
+        this.#location = new Location(x, y, z);
 
         this.#id = options.id ?? options.ID ?? "";
         this.#width = options.width ?? options.Width ?? 1;
         this.#height = options.height ?? options.Height ?? 1;
-        this.#adjustment = point2(options.adjustment ?? options.Adjustment);
-        this.#direction = options.direction ?? options.Direction ?? 6;
+        this.#adjustment = Point.from(options.adjustment ?? options.Adjustment);
+        this.#direction = options.direction ?? options.Direction ?? Direction.NONE;
         this.#canMove = options.canMove ?? options.CanMove ?? false;
         this.#canTarget = options.canTarget ?? options.CanTarget ?? false;
         this.#cross = options.cross ?? options.Cross ?? false;
@@ -88,35 +42,33 @@ export class Entity{
         this.#bodyStand = options.bodyStand ?? options.Body_Stand ?? null;
         this.#bodyAnimated = options.bodyAnimated ?? options.Body_Animated ?? false;
         this.#map = options.map ?? options.Map ?? null;
-        this.#move = toMove(options.move ?? options.Move);
+        this.#move = EntityMove.from(options.move ?? options.Move);
         // Une entité qui peut marcher a forcément besoin de son carnet de route :
         // sans lui, le calcul de chemin refuse de la faire bouger.
-        if(this.#move == null && this.#canMove) this.#move = Entity.emptyMove();
-        this.#moveDraw = toMoveDraw(options.moveDraw ?? options.MoveDraw, x, y, z, this.#adjustment);
+        if(this.#move == null && this.#canMove) this.#move = EntityMove.empty();
     }
-
-    /** Carnet de route vierge. speed = durée d'un pas, à régler par le jeu. */
-    static emptyMove(){ return toMove({ speed: 5 }); }
 
     get id(){ return this.#id; }
     set id(value){ this.#id = value ?? ""; }
-    get x(){ return this.#x; }
-    set x(value){ this.#x = value ?? 0; }
-    get y(){ return this.#y; }
-    set y(value){ this.#y = value ?? 0; }
-    get z(){ return this.#z; }
-    set z(value){ this.#z = value ?? 0; }
+    /** La position dans le monde. x, y et z en sont les raccourcis de lecture. */
+    get location(){ return this.#location; }
+    get x(){ return this.#location.x; }
+    set x(value){ this.#location.x = value; }
+    get y(){ return this.#location.y; }
+    set y(value){ this.#location.y = value; }
+    get z(){ return this.#location.z; }
+    set z(value){ this.#location.z = value; }
     get width(){ return this.#width; }
     set width(value){ this.#width = value ?? 1; }
     get height(){ return this.#height; }
     set height(value){ this.#height = value ?? 1; }
     get adjustment(){ return this.#adjustment; }
     get direction(){ return this.#direction; }
-    set direction(value){ this.#direction = value ?? 6; }
+    set direction(value){ this.#direction = value ?? Direction.NONE; }
     get canMove(){ return this.#canMove; }
     set canMove(value){
         this.#canMove = !!value;
-        if(this.#canMove && this.#move == null) this.#move = Entity.emptyMove();
+        if(this.#canMove && this.#move == null) this.#move = EntityMove.empty();
     }
     get canTarget(){ return this.#canTarget; }
     set canTarget(value){ this.#canTarget = !!value; }
@@ -131,18 +83,62 @@ export class Entity{
     get map(){ return this.#map; }
     set map(value){ this.#map = value ?? null; }
     get move(){ return this.#move; }
-    set move(value){ this.#move = toMove(value); }
-    get moveDraw(){ return this.#moveDraw; }
-    set moveDraw(value){ this.#moveDraw = toMoveDraw(value, this.#x, this.#y, this.#z, this.#adjustment); }
+    set move(value){ this.#move = EntityMove.from(value); }
+
+    /** L'entité est-elle en train de parcourir un trajet ? */
+    get walking(){ return this.#move != null && this.#move.walking; }
+
+    /**
+     * Le pas en cours, ou null à l'arrêt.
+     * C'est ce que la vue utilise pour placer le sprite entre deux cases.
+     */
+    stride(){ return this.#move == null ? null : this.#move.stride(); }
+
+    /**
+     * Fait avancer l'entité de elapsed millisecondes le long de son trajet.
+     * Renvoie true si elle vient de changer de case, ce qui permet à la vue de
+     * ne réagir (plafonds, tri) qu'aux vrais changements.
+     *
+     * La position logique saute sur la case visée dès le début du pas :
+     * l'entité occupe la case dans laquelle elle entre, le sprite la rattrape.
+     */
+    advance(elapsed){
+        if(!this.walking) return false;
+        if(this.#move.advance(elapsed)){ this.stop(); return true; }
+
+        const stride = this.#move.stride();
+        if(stride == null){ this.stop(); return true; }
+        if(this.#location.equals(stride.to)) return false;
+
+        this.#direction = stride.direction;
+        this.#location.copy(stride.to);
+        return true;
+    }
+
+    /** Termine le trajet : on se pose sur la dernière case et on range le carnet. */
+    stop(){
+        if(this.#move == null) return;
+        this.#location.copy(this.#move.destination);
+        this.#move.clear();
+        this.#bodyAnimated = false;
+    }
+
+    /** Lance l'entité sur un trajet déjà calculé, depuis le début. */
+    walk(street){
+        if(this.#move == null || !this.#move.start(street)) return false;
+        this.#bodyAnimated = true;
+        return true;
+    }
 
     /**
      * Collision point ↔ volume 3D.
      * Utilisé pour savoir si un clic / un cube vise cette entité.
      */
     contains(px, py, pz){
-        return (px <= this.#x) && (px > this.#x - this.#width)
-            && (py <= this.#y) && (py > this.#y - this.#width)
-            && (pz >= this.#z) && (pz < this.#z + this.#height);
+        const location = this.#location;
+        return (px <= location.x) && (px > location.x - this.#width)
+            && (py <= location.y) && (py > location.y - this.#width)
+            && (pz >= location.z) && (pz < location.z + this.#height);
     }
 
     /**
@@ -151,7 +147,8 @@ export class Entity{
      */
     toJSON(){
         return {
-            id: this.#id, x: this.#x, y: this.#y, z: this.#z,
+            id: this.#id,
+            x: this.#location.x, y: this.#location.y, z: this.#location.z,
             width: this.#width, height: this.#height,
             adjustment: this.#adjustment, direction: this.#direction,
             canMove: this.#canMove, canTarget: this.#canTarget, cross: this.#cross,

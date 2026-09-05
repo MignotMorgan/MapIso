@@ -10,6 +10,8 @@ import { CaseIso } from './caseIso.js';
 import { PaintIso } from './paintIso.js';
 import { Textures } from './textureIso.js';
 import { EntityDraw } from './entitydraw.js';
+import { Pathfinding } from './Pathfinding.js';
+import { Point, Location, CasePoint } from './pointIso.js';
 
 export class MapView extends Control{
     //grap : Gestion du déplacement de la vue ("grab" pour saisir/déplacer) 
@@ -51,13 +53,13 @@ export class MapView extends Control{
     #createEntityDraw = true;
 
     //case : Représente la position d'une case sur la grille isométrique
-    #case = {x:0,y:0, adjustment:{x:0,y:0}};
+    #case = new CasePoint();
     /**
      * location : point du monde affiché au coin HAUT-GAUCHE de la vue.
      * Le champ de vision s'ouvre ensuite vers la droite et vers le bas, en
      * losange. Utiliser moveTo() pour la déplacer, afin que la vue se recalcule.
      */
-    #location = {x:0,y:0,z:0};
+    #location = new Location();
     #frame = {x:100, y:200, width:600, height:300};
     #revise = {screen:{x:0, y:0}, adjustment:{x:0,y:0}, step:25, modified:false, rolled:0};
     #sizeCase;
@@ -75,6 +77,8 @@ export class MapView extends Control{
     #adjusted = true;
     // Repères du dernier remplissage, pour ne recalculer les colonnes qu'en cas de changement.
     #drawn = {x:NaN, y:NaN, z:NaN, maxZ:-1, wallCeil:-1};
+    //clock : temps écoulé entre deux images, en millisecondes.
+    #clock = {last:0, elapsed:0};
 
     constructor(){
         super();
@@ -107,7 +111,20 @@ export class MapView extends Control{
             this.createEntitysDraw();
             this.#createEntityDraw = false;
         }
-        this.placeEntitysDraw();
+        this.placeEntitysDraw(this.elapsed());
+    }
+    /**
+     * Millisecondes écoulées depuis l'image précédente.
+     * On plafonne : si l'onglet a été mis en arrière-plan, un écart énorme
+     * ferait traverser la carte d'un coup aux personnages.
+     */
+    elapsed(){
+        const now = Date.now();
+        const clock = this.#clock;
+        if(clock.last == 0){ clock.last = now; clock.elapsed = 0; return 0; }
+        clock.elapsed = Math.min(now - clock.last, 200);
+        clock.last = now;
+        return clock.elapsed;
     }
     /** La caméra ou le mode d'affichage ont-ils bougé depuis le dernier remplissage ? */
     viewChanged(){
@@ -124,13 +141,13 @@ export class MapView extends Control{
     }
     /** Déplace la caméra. Le monde sous la vue est recalculé au prochain tour. */
     moveTo(x, y, z = this.#location.z){
-        this.#location.x = x;
-        this.#location.y = y;
-        this.#location.z = z;
+        this.#location.set(x, y, z);
         this.#createCubes = true;
     }
     get case(){ return this.#case; }
-    set case(value){ this.#case = value; }
+    // On recopie dans la case existante : la vue garde la sienne, personne ne
+    // peut lui glisser un objet d'une autre forme à la place.
+    set case(value){ this.#case.copy(value); }
     get location(){ return this.#location; }
     get frame(){ return this.#frame; } //Supprimer!!
     get revise(){ return this.#revise; }
@@ -197,9 +214,6 @@ export class MapView extends Control{
         c.screen = this.screenFromCase(x, y );
         return c;
     }
-    fakeCase(){
-        return { x : 0, y : 0, adjustment : { x : 0, y : 0 } };
-    }
     nbrCasesFrame(){
         const sizeCase = this.sizeCase;
         const redressed = this.redress();
@@ -222,44 +236,24 @@ export class MapView extends Control{
         //console.log(redressed);
         return redressed;
     }
-    caseFromMouse(){
-        const inside = this.Mouse.inside();
-        // Coordonnées relatives au coin haut-gauche du contrôle
-        //const x = inside.x - this.Border.left;
-        //const y = inside.y - this.Border.top;
-        //const x = this.Absolute.x - this.Border.left;
-        //const y = this.Absolute.y - this.Border.top;
-        const x = Core.mouse.x - this.form.Inside.x;// - this.form.Border.left;
-        const y = Core.mouse.y - this.form.Inside.y;// - this.form.Border.top;
-        return this.caseFromScreen(x, y);
+    /**
+     * Souris dans le repère de dessin : le même que case.screen et
+     * entityDraw.screen. Mouse.inside() est relatif au contrôle, pas au
+     * formulaire, et comparer les deux décale toute détection de clic.
+     */
+    mouseFromScreen(){
+        const form = this.form;
+        return new Point(Core.mouse.x - form.Inside.x,
+                         Core.mouse.y - form.Inside.y);
     };
-    caseFromScreen2(x, y){
-        const sizeCase = this.sizeCase;
-        const redressed = this.redress();
-        let c = this.fakeCase();
-
-        x -= (redressed.x + sizeCase);
-        y -= redressed.y;
-
-        x = ((x/sizeCase)*100);
-        y = ((y/sizeCase)*100);
-        //y = ((y-(sizeCase/2))/sizeCase)*100;  
-
-        let pY = ((2*y-x)/2);
-        let pX = (x+pY);
-    
-        c.y = Math.round(pY/100);
-        c.x = Math.round(pX/100);
-    
-        c.adjustment.x = Math.round(x-((c.x-c.y)*100));
-        c.adjustment.y = Math.round(y-((c.x+c.y)*50));
-
-        return c;
+    caseFromMouse(){
+        const mouse = this.mouseFromScreen();
+        return this.caseFromScreen(mouse.x, mouse.y);
     };
     caseFromScreen(x, y){
         const sizeCase = this.sizeCase;
         const redressed = this.redress();
-        let c = this.fakeCase();
+        let c = new CasePoint();
 
         x -= (redressed.x + sizeCase);
         y -= redressed.y;
@@ -283,46 +277,33 @@ export class MapView extends Control{
     screenFromCase(x, y){
         const sizeCase = this.sizeCase;
         const redressed = this.redress();
-        
-        return {
-            x: ((x - y) * sizeCase) + redressed.x + sizeCase,
-            y: ((x + y) * sizeCase / 2) + redressed.y
-        };
+
+        return new Point(((x - y) * sizeCase) + redressed.x + sizeCase,
+                         ((x + y) * sizeCase / 2) + redressed.y);
     };
  
     //A faire!!!
     caseFromLocation(x, y, z){
-        const c = this.fakeCase();
-        return c;
+        return new CasePoint();
     }
 
     screenFromLocation(x, y, z){
         const sizeCase = this.sizeCase;
         const redressed = this.redress();
-        const c = this.fakeCase();
-        const screen = {x:0,y:0};
-        // === CALCUL DES COORDONNÉES RELATIVES À LA CAMÉRA ===
-    
+        const location = this.#location;
+
     /**
-     * Coordonnée X relative avec correction de parallaxe :
-     * - (L_X - Location.X) : position relative à la caméra
-     * - (L_Z - Location.Z) : correction de la parallaxe verticale
+     * Coordonnées relatives à la caméra, avec la correction de parallaxe due à
+     * l'altitude : monter d'un cube décale d'une case en x comme en y, c'est ce
+     * qui donne l'illusion du relief.
      */
-        c.x = x - this.location.x - (z - this.location.z);
-    
-    /**
-     * Coordonnée Y relative avec correction de parallaxe :
-     * Même principe que pour X
-     */
-        c.y = y - this.location.y - (z - this.location.z);
-    
-    // === CONVERSION EN COORDONNÉES ÉCRAN ===
-    
-    // Application des formules isométriques standard, dans le repère du contrôle
-    // (même origine que screenFromCase, sinon entités et cases se décalent).
-        screen.x = parseInt((c.x - c.y) * sizeCase) + redressed.x + sizeCase;
-        screen.y = parseInt((c.x + c.y) * sizeCase / 2) + redressed.y;
-        return screen;
+        const cX = x - location.x - (z - location.z);
+        const cY = y - location.y - (z - location.z);
+
+    // Formules isométriques standard, dans le repère du contrôle et avec la
+    // même origine que screenFromCase, sinon entités et cases se décalent.
+        return new Point(parseInt((cX - cY) * sizeCase) + redressed.x + sizeCase,
+                         parseInt((cX + cY) * sizeCase / 2) + redressed.y);
     };
     createCases(){
         const maxCases = this.nbrCases*2;
@@ -395,132 +376,59 @@ export class MapView extends Control{
     }
 
     /**
-     * Range chaque entité dans la case qu'elle occupe et calcule sa position écran.
-     * Refait à chaque image : c'est ce qui permet à un personnage de passer
-     * devant puis derrière un mur au bon moment.
+     * Fait avancer les entités, puis range chacune dans la case qu'elle occupe.
+     * Refait à chaque image : c'est ce qui permet à un personnage de marcher et
+     * de passer devant puis derrière un mur au bon moment.
      */
-    placeEntitysDraw(){
+    placeEntitysDraw(elapsed = 0){
         for(let c = 0; c < this.#cases.length; c++)
             this.#cases[c].entitysDraw = [];
 
-        this.placeDraws(this.#permanentsDraw);
-        this.placeDraws(this.#entitysDraw);
+        this.placeDraws(this.#permanentsDraw, elapsed);
+        this.placeDraws(this.#entitysDraw, elapsed);
     }
-    placeDraws(draws){
+    placeDraws(draws, elapsed){
         for(let i = 0; i < draws.length; i++){
             const draw = draws[i];
-            const screen = this.screenFromLocation(draw.x, draw.y, draw.z);
-            draw.toScreen(screen.x, screen.y);
+            const entity = draw.entity;
 
-            const C2D = this.findCaseLocation(draw.x, draw.y, draw.z);
+            // Le monde avance d'abord, l'écran suit ensuite.
+            if(entity.advance(elapsed) && entity.id == this.selected.ID)
+                this.noCeilingFromSelected();
+
+            const stride = entity.stride();
+            if(stride == null){
+                draw.toScreenPoint(this.screenFromLocation(entity.x, entity.y, entity.z));
+            } else {
+                // Entre deux cases : le pas place lui-même le sprite entre les deux.
+                draw.toScreenPoint(stride.between(
+                    this.screenFromLocation(stride.from.x, stride.from.y, stride.from.z),
+                    this.screenFromLocation(stride.to.x, stride.to.y, stride.to.z)));
+            }
+
+            const C2D = this.findCaseLocation(entity.x, entity.y, entity.z);
             if(C2D != null) C2D.entitysDraw[C2D.entitysDraw.length] = draw;
         }
     }
 
-
-
-
-
-/**
- * CALCUL DU VECTEUR ENTRE DEUX CASES
- * Calcule le déplacement nécessaire en pixels pour aller d'une case à une autre
- * 
- * @param {Object} case_src - Case source {X, Y, Adjustment:{X,Y}}
- * @param {Object} case_dest - Case destination {X, Y, Adjustment:{X,Y}}
- * @returns {Object} Vecteur de déplacement {X, Y} en pixels
- * 
- * PRINCIPE :
- * Cette fonction calcule la différence vectorielle entre deux cases en tenant compte :
- * 1. De leurs coordonnées isométriques (partie entière)
- * 2. De leurs ajustements sous-pixel (partie décimale)
- */
-    caseToCase(case_src, case_dest){
-    // === CALCUL DES DIFFÉRENCES DE COORDONNÉES ===
-        let cX = case_dest.x - case_src.x;  // Différence en X isométrique
-        let cY = case_dest.y - case_src.y;  // Différence en Y isométrique
-    
-    // === CONVERSION EN DÉPLACEMENT PIXEL ===
-        return {
-        // Composante X : utilise la formule isométrique (cX-cY)*100 + ajustements
-            x: ((cX-cY)*100) + case_dest.adjustment.x - case_src.adjustment.x,
-        // Composante Y : utilise la formule isométrique (cX+cY)*50 + ajustements  
-            y: ((cX+cY)*50) + case_dest.adjustment.y - case_src.adjustment.y
-        };
-    };
-/**
- * CONVERSION CASE ISOMÉTRIQUE VERS COORDONNÉES ÉCRAN
- * Convertit des coordonnées de case isométrique en position écran en pixels
- * 
- * @param {number} Case_X - Coordonnée X de la case isométrique
- * @param {number} Case_Y - Coordonnée Y de la case isométrique  
- * @param {number} sizecube - Taille d'un cube en pixels (facteur d'échelle)
- * @returns {Object} Position écran {X, Y} en pixels
- * 
- * FORMULES ISOMÉTRIQUES FONDAMENTALES :
- * Ces formules transforment un espace 2D isométrique en coordonnées écran :
- * - screen_x = (iso_x - iso_y) * taille_cube
- * - screen_y = (iso_x + iso_y) * taille_cube / 2
- * 
- * EXPLICATION GÉOMÉTRIQUE :
- * - La différence (Case_X - Case_Y) donne la position horizontale à l'écran
- * - La somme (Case_X + Case_Y) divisée par 2 donne la position verticale
- * - Ces formules créent la perspective isométrique à 30° typique
- */
-    caseToScreen(case_x, case_y, sizecube){
-    // Position horizontale : différence des coordonnées * taille cube
-        let pointX = parseInt((case_x - case_y) * sizecube);
-    // Position verticale : somme des coordonnées * taille cube / 2
-        let pointY = parseInt((case_x + case_y) * sizecube / 2);
-        return {x:pointX,y:pointY};
-    };
-
-/**
- * CONVERSION COORDONNÉES MONDE 3D VERS ÉCRAN
- * Convertit une position 3D absolue du monde en coordonnées écran visibles
- * 
- * @param {number} L_X - Coordonnée X absolue dans le monde
- * @param {number} L_Y - Coordonnée Y absolue dans le monde
- * @param {number} L_Z - Coordonnée Z absolue dans le monde (altitude)
- * @param {number} sizecube - Taille d'un cube en pixels
- * @returns {Object} Position écran {X, Y} en pixels
- * 
- * PRINCIPE DE LA PROJECTION 3D ISOMÉTRIQUE :
- * 1. Soustrait la position de la caméra (Location) pour obtenir les coordonnées relatives
- * 2. Applique la correction de parallaxe pour la profondeur Z
- * 3. Convertit en coordonnées écran avec les formules isométriques
- * 4. Ajoute un décalage horizontal d'un cube pour le centrage
- * 
- * CORRECTION DE PARALLAXE :
- * La différence d'altitude (L_Z - Location.Z) affecte la position apparente :
- * - Plus un objet est haut, plus il semble décalé vers le coin supérieur-gauche
- * - Cette correction simule la perspective isométrique 3D
- */
-    locationToScreen(location_x, location_y, location_z, sizecube){
-    // === CALCUL DES COORDONNÉES RELATIVES À LA CAMÉRA ===
-    
+    /** Sélectionne une entité et met à jour les plafonds à masquer. */
+    select(id){
+        this.selected.ID = id ?? "";
+        this.noCeilingFromSelected();
+        return this.selectedEntity();
+    }
     /**
-     * Coordonnée X relative avec correction de parallaxe :
-     * - (L_X - Location.X) : position relative à la caméra
-     * - (L_Z - Location.Z) : correction de la parallaxe verticale
+     * Envoie l'entité sélectionnée vers un cube.
+     * Renvoie false si rien n'est sélectionné ou si la destination est inaccessible.
      */
-        let case_x = location_x - this.location.x - (location_z - this.location.z);
-    
-    /**
-     * Coordonnée Y relative avec correction de parallaxe :
-     * Même principe que pour X
-     */
-        let case_y = location_y - this.location.y - (location_z - this.location.z);
-    
-    // === CONVERSION EN COORDONNÉES ÉCRAN ===
-    
-    // Application des formules isométriques standard
-        let pointX = parseInt((case_x - case_y) * sizecube);
-        let pointY = parseInt((case_x + case_y) * sizecube / 2);
-    
-    // Décalage horizontal d'un cube pour le centrage de l'affichage
-        pointX += sizecube;
-        return {x:pointX, y:pointY};
-    };
+    moveSelectedTo(cube){
+        if(cube == null || this.map == null) return false;
+        const entity = this.selectedEntity();
+        if(entity == null) return false;
+        return new Pathfinding(entity.x, entity.y, entity.z, this.map)
+                    .moveTo(entity, cube.x, cube.y, cube.z);
+    }
+
 /**
  * GESTION DE LA CIBLE DE SOURIS AVEC LIMITATION DE PORTÉE
  * Détermine la position et la cible sous le curseur pour les actions avec portée limitée
@@ -625,9 +533,9 @@ export class MapView extends Control{
             this.selectedMouse.target = target.id;
         } else {
             // Pas de hit 3D : rectangle sprite (utile si le volume voxel est petit).
-            const inside = this.Mouse.inside();
-            let mx = inside.x;
-            let my = inside.y;
+            const mouse = this.mouseFromScreen();
+            let mx = mouse.x;
+            let my = mouse.y;
         
             for(let i = 0; i < this.entitysDraw.length; i++){
                 if(this.entitysDraw[i].screen.x < mx && 
@@ -663,10 +571,11 @@ export class MapView extends Control{
     
         this.target.id = "";
     
-        let temp_EntitysDraw = this.entitysDraw;
-        const inside = this.Mouse.inside();
-        let mx = inside.x;
-        let my = inside.y;
+        // Les décors sont ciblables aussi : un arbre ou un bâtiment se clique.
+        const temp_EntitysDraw = this.permanentsDraw.concat(this.entitysDraw);
+        const mouse = this.mouseFromScreen();
+        let mx = mouse.x;
+        let my = mouse.y;
         for(let d = 0; d < temp_EntitysDraw.length; d++){
             if(temp_EntitysDraw[d].screen.x < mx && 
                 mx < temp_EntitysDraw[d].screen.x + temp_EntitysDraw[d].width && 
@@ -684,7 +593,7 @@ export class MapView extends Control{
  */
     selectedMulti_Down(){
         const multi = this.selectedMulti;
-        const inside = this.Mouse.inside();
+        const inside = this.mouseFromScreen();
         multi.Active = true;
         this.selected.Multi = [];
         // Coin départ du rectangle, relatif au contrôle (pas au formulaire).
@@ -700,7 +609,7 @@ export class MapView extends Control{
     selectedMulti_Move(){
         const selected = this.selected;
         const multi = this.selectedMulti;
-        const inside = this.Mouse.inside();
+        const inside = this.mouseFromScreen();
         selected.Multi = [];
         multi.Destination.X = inside.x;
         multi.Destination.Y = inside.y;
@@ -1105,6 +1014,20 @@ export class MouseIso extends Mouse{
         const control = this.control;
         if(Core.mousehover.control !== control)return;
         control.case = control.caseFromMouse();
+    }
+    /**
+     * Clic gauche : on désigne un personnage pour le sélectionner, on désigne
+     * le sol pour l'y envoyer. C'est la boucle de jeu la plus courante d'un
+     * moteur isométrique, et elle tient en quatre lignes.
+     */
+    clickLeft(){
+        super.clickLeft();
+        const control = this.control;
+        control.case = control.caseFromMouse();
+        control.onTarget();
+
+        if(control.target.id !== "") control.select(control.target.id);
+        else control.moveSelectedTo(control.target.cube);
     }
     wheel(deltaX, deltaY){
         const control = this.control;
