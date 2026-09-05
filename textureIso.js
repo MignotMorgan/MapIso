@@ -49,9 +49,9 @@ export class Texture{
      * Pour une couleur, la base occupe le bas du rectangle (un losange de
      * hauteur width/2) et le reste de la hauteur devient le corps du volume.
      */
-    draw(paintIso, x, y, width, height){
+    draw(paint, x, y, width, height){
         if(this.#image != null){
-            paintIso.drawImage(this.#image, x, y, width, height);
+            paint.drawImage(this.#image, x, y, width, height);
             return;
         }
         if(this.#faces == null) return;
@@ -61,17 +61,17 @@ export class Texture{
         const body = baseTop - y;            // hauteur verticale du volume
 
         if(body <= 0){
-            paintIso.fillLosange(x + size, baseTop, size, this.#faces.top);
+            paint.fillLosange(x + size, baseTop, size, this.#faces.top);
             return;
         }
 
-        const top = paintIso.losange(x + size, y, size);        // face du dessus
-        const base = paintIso.losange(x + size, baseTop, size); // losange au sol
+        const top = paint.losange(x + size, y, size);        // face du dessus
+        const base = paint.losange(x + size, baseTop, size); // losange au sol
 
         // Faces latérales : on relie le dessus à la base, à gauche puis à droite.
-        paintIso.fillPolygon([top[3], top[2], base[2], base[3]], this.#faces.left);
-        paintIso.fillPolygon([top[1], top[2], base[2], base[1]], this.#faces.right);
-        paintIso.fillPolygon(top, this.#faces.top);
+        paint.fillPolygon([top[3], top[2], base[2], base[3]], this.#faces.left);
+        paint.fillPolygon([top[1], top[2], base[2], base[1]], this.#faces.right);
+        paint.fillPolygon(top, this.#faces.top);
     }
 
     // Dessus éclairé, côté gauche moyen, côté droit sombre : suffit à donner du relief.

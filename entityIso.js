@@ -148,11 +148,19 @@ export class Entity{
     toJSON(){
         return {
             id: this.#id,
-            x: this.#location.x, y: this.#location.y, z: this.#location.z,
-            width: this.#width, height: this.#height,
-            adjustment: this.#adjustment, direction: this.#direction,
-            canMove: this.#canMove, canTarget: this.#canTarget, cross: this.#cross,
-            body: this.#body, bodyStand: this.#bodyStand, bodyAnimated: this.#bodyAnimated,
+            x: this.#location.x,
+            y: this.#location.y,
+            z: this.#location.z,
+            width: this.#width,
+            height: this.#height,
+            adjustment: this.#adjustment,
+            direction: this.#direction,
+            canMove: this.#canMove,
+            canTarget: this.#canTarget,
+            cross: this.#cross,
+            body: this.#body,
+            bodyStand: this.#bodyStand,
+            bodyAnimated: this.#bodyAnimated,
             move: this.#move
         };
     }

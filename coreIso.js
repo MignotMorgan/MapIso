@@ -1,5 +1,5 @@
 import { Core } from 'Control/core.js';
-import { FactoryElementIso } from './factoryIso.js';
+import { FactoryElementIso } from './Controls/factoryIso.js';
 
 
 export class CoreIso  extends Core{

@@ -1,7 +1,7 @@
 import { FactoryForm } from 'Control/form.js';
-import { FactoryControlInfoIso } from "./Control/controlinfoIso.js";
+import { FactoryControlInfoIso } from "./Controls/controlinfoIso.js";
 import { CoreIso } from "./coreIso.js";
-import { FactoryMapView } from './factoryIso.js';
+import { FactoryMapView } from './Controls/factoryIso.js';
 import { DemoWorld } from './demoIso.js';
 
 window.onload = ()=>{

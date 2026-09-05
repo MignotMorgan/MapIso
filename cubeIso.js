@@ -38,9 +38,13 @@ export class Cube{
     /** Les champs privés sont invisibles pour JSON.stringify : on les expose ici. */
     toJSON(){
         return {
-            x: this.#x, y: this.#y, z: this.#z,
-            floors: this.#floors, volumes: this.#volumes,
-            floorsSpeed: this.#floorsSpeed, volumesSpeed: this.#volumesSpeed,
+            x: this.#x,
+            y: this.#y,
+            z: this.#z,
+            floors: this.#floors,
+            volumes: this.#volumes,
+            floorsSpeed: this.#floorsSpeed,
+            volumesSpeed: this.#volumesSpeed,
             cross: this.#cross
         };
     }

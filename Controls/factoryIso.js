@@ -1,17 +1,21 @@
 import { Factory } from 'Control/factory.js';
-import { MapView, DrawMapView, MouseIso, ResizeIso, ScaleIso } from './mapView.js';
-import { CaseIso } from './caseIso.js';
-import { Cube } from './cubeIso.js';
-import { Entity } from './entityIso.js';
-import { WorldMap } from './worldMap.js';
+import { MapView } from './mapView.js';
+import { DrawMapView } from './drawMapView.js';
+import { MouseMapView } from './mouseMapView.js';
+import { ResizeMapView } from './resizeMapView.js';
+import { ScaleMapView } from './scaleMapView.js';
+import { CaseIso } from '../caseIso.js';
+import { Cube } from '../cubeIso.js';
+import { Entity } from '../entityIso.js';
+import { WorldMap } from '../worldMap.js';
 
 export class FactoryMapView extends Factory {  
     createControl(){ return new MapView(); }
     createFactoryElement(){ return new FactoryElementIso(); }
     createDraw(control){ return new DrawMapView(control); }
-    createMouse(control){ return new MouseIso(control); }
-    createResize(control){ return new ResizeIso(control); }
-    createScale(control){ return new ScaleIso(control); }
+    createMouse(control){ return new MouseMapView(control); }
+    createResize(control){ return new ResizeMapView(control); }
+    createScale(control){ return new ScaleMapView(control); }
 }
 
 /** Crée les objets monde (carte, cubes, entités, cases), pas les contrôles UI. */
