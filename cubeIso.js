@@ -34,4 +34,14 @@ export class Cube{
     set volumesSpeed(value){ this.#volumesSpeed = value ?? 0; }
     get cross(){ return this.#cross; }
     set cross(value){ this.#cross = !!value; }
+
+    /** Les champs privés sont invisibles pour JSON.stringify : on les expose ici. */
+    toJSON(){
+        return {
+            x: this.#x, y: this.#y, z: this.#z,
+            floors: this.#floors, volumes: this.#volumes,
+            floorsSpeed: this.#floorsSpeed, volumesSpeed: this.#volumesSpeed,
+            cross: this.#cross
+        };
+    }
 }

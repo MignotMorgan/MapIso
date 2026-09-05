@@ -2,6 +2,7 @@ import { FactoryForm } from 'Control/form.js';
 import { FactoryControlInfoIso } from "./Control/controlinfoIso.js";
 import { CoreIso } from "./coreIso.js";
 import { FactoryMapView } from './factoryIso.js';
+import { DemoWorld } from './demoIso.js';
 
 window.onload = ()=>{
     const factoryform = new FactoryForm();
@@ -9,7 +10,6 @@ window.onload = ()=>{
     form.id = "formMap";
     form.canMove = true;
     form.canResize = true;
-    //form.canScale = true;
     //form.customTheme.background.color = "#5e5f5fff";
     //form.customTheme.background.border.color = "#0515f0ff";
 
@@ -18,11 +18,19 @@ window.onload = ()=>{
     mapView.canMove = true;
     mapView.canResize = true;
     //mapView.canScale = true;
-    //mapView.Border.left = 0;
-    //mapView.Border.top = 0;
-    //mapView.Border.right = 0;
-    //mapView.Border.bottom = 0;
     form.add(mapView);
+
+    // Le monde et son habillage. La vue ne sait rien d'autre que « voici une carte ».
+    const demo = new DemoWorld();
+    demo.textures();
+    mapView.map = demo.map();
+    mapView.floorsDefault = ["vide"];
+    mapView.maxZ = demo.depth - 1;
+    mapView.moveTo(0, 0, 0);
+
+    // Repères de mise au point, à réactiver au besoin.
+    mapView.Draw.showGrid = false;
+    mapView.Draw.showNumbers = false;
 
     let controlInfoIso = (new FactoryControlInfoIso).create(10, 10, 425, 275);
     controlInfoIso.id = "infoIso";

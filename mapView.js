@@ -7,6 +7,9 @@ import { Factory } from 'Control/factory.js'
 import { Mouse } from 'Control/input.js';
 import { Resize, Scale } from 'Control/transformation.js';
 import { CaseIso } from './caseIso.js';
+import { PaintIso } from './paintIso.js';
+import { Textures } from './textureIso.js';
+import { EntityDraw } from './entitydraw.js';
 
 export class MapView extends Control{
     //grap : Gestion du déplacement de la vue ("grab" pour saisir/déplacer) 
@@ -49,8 +52,12 @@ export class MapView extends Control{
 
     //case : Représente la position d'une case sur la grille isométrique
     #case = {x:0,y:0, adjustment:{x:0,y:0}};
-    //location : Position de la caméra/vue dans le monde 3D
-    #location = {x:-25,y:-5,z:0};
+    /**
+     * location : point du monde affiché au coin HAUT-GAUCHE de la vue.
+     * Le champ de vision s'ouvre ensuite vers la droite et vers le bas, en
+     * losange. Utiliser moveTo() pour la déplacer, afin que la vue se recalcule.
+     */
+    #location = {x:0,y:0,z:0};
     #frame = {x:100, y:200, width:600, height:300};
     #revise = {screen:{x:0, y:0}, adjustment:{x:0,y:0}, step:25, modified:false, rolled:0};
     #sizeCase;
@@ -62,6 +69,13 @@ export class MapView extends Control{
     #cases = [];
     //maxZ : Niveau maximum d'affichage en profondeur (altitude)
     #maxZ = 10;
+    //floorsDefault : textures dessinées sous les cases vides (repère de l'éditeur)
+    #floorsDefault = [];
+    //adjusted : si vrai, l'offset sous-case des entités décale leur sprite
+    #adjusted = true;
+    // Repères du dernier remplissage, pour ne recalculer les colonnes qu'en cas de changement.
+    #drawn = {x:NaN, y:NaN, z:NaN, maxZ:-1, wallCeil:-1};
+
     constructor(){
         super();
         //this.nbrCases = 10;
@@ -74,10 +88,46 @@ export class MapView extends Control{
         super.initialize();
         this.modify();
     }
+    /**
+     * Un tour de boucle : on ne refait que ce qui a changé.
+     * Les colonnes de cubes ne bougent que si la caméra ou la carte bouge ;
+     * les entités, elles, sont replacées à chaque image puisqu'elles marchent.
+     */
     tick(){
         super.tick();
         if(this.#modified)
             this.modify();
+
+        if(this.viewChanged()) this.#createCubes = true;
+        if(this.#createCubes){
+            this.createCubes();
+            this.#createCubes = false;
+        }
+        if(this.#createEntityDraw){
+            this.createEntitysDraw();
+            this.#createEntityDraw = false;
+        }
+        this.placeEntitysDraw();
+    }
+    /** La caméra ou le mode d'affichage ont-ils bougé depuis le dernier remplissage ? */
+    viewChanged(){
+        const drawn = this.#drawn;
+        const location = this.#location;
+        if(drawn.x === location.x && drawn.y === location.y && drawn.z === location.z
+            && drawn.maxZ === this.#maxZ && drawn.wallCeil === this.#wallCeil) return false;
+        drawn.x = location.x;
+        drawn.y = location.y;
+        drawn.z = location.z;
+        drawn.maxZ = this.#maxZ;
+        drawn.wallCeil = this.#wallCeil;
+        return true;
+    }
+    /** Déplace la caméra. Le monde sous la vue est recalculé au prochain tour. */
+    moveTo(x, y, z = this.#location.z){
+        this.#location.x = x;
+        this.#location.y = y;
+        this.#location.z = z;
+        this.#createCubes = true;
     }
     get case(){ return this.#case; }
     set case(value){ this.#case = value; }
@@ -99,17 +149,28 @@ export class MapView extends Control{
     set cases(value){ this.#cases = value; }
     get maxZ(){ return this.#maxZ; }
     set maxZ(value){ this.#maxZ = value; }
+    get floorsDefault(){ return this.#floorsDefault; }
+    set floorsDefault(value){ this.#floorsDefault = value || []; }
+    get adjusted(){ return this.#adjusted; }
+    set adjusted(value){ this.#adjusted = !!value; this.#createEntityDraw = true; }
 
 
     get grap(){ return this.#grap; }
     get wallCeil(){ return this.#wallCeil; }
+    set wallCeil(value){ this.#wallCeil = value ?? 0; }
     get selected(){ return this.#selected; }
     get target(){ return this.#target; }
     get selectedMulti(){ return this.#selectedMulti; }
     get selectedMouse(){ return this.#selectedMouse; }
     //get cases3D(){ return this.#cases3D; }
     get map(){ return this.#map; }
-    set map(value){ this.#map = value; } // assigner avant createCubes / findEntityID
+    /** Brancher une carte suffit : la vue se remplit toute seule au tour suivant. */
+    set map(value){
+        this.#map = value ?? null;
+        this.#noCeiling = [];
+        this.#createCubes = true;
+        this.#createEntityDraw = true;
+    }
     get entitys(){ return this.#entitys; }
     get entitysDraw(){ return this.#entitysDraw; }
     get permanentsDraw(){ return this.#permanentsDraw; }
@@ -126,6 +187,9 @@ export class MapView extends Control{
     modify(){
         this.#sizeCase = this.sizeCaseFrame();
         this.createCases();
+        this.#modified = false;
+        this.#createCubes = true;
+        this.#createEntityDraw = true;   // la taille des sprites dépend de sizeCase
     }
 
     newCase(x, y ){
@@ -234,6 +298,7 @@ export class MapView extends Control{
 
     screenFromLocation(x, y, z){
         const sizeCase = this.sizeCase;
+        const redressed = this.redress();
         const c = this.fakeCase();
         const screen = {x:0,y:0};
         // === CALCUL DES COORDONNÉES RELATIVES À LA CAMÉRA ===
@@ -253,12 +318,10 @@ export class MapView extends Control{
     
     // === CONVERSION EN COORDONNÉES ÉCRAN ===
     
-    // Application des formules isométriques standard
-        screen.x = parseInt((c.x - c.y) * sizeCase);
-        screen.y = parseInt((c.x + c.y) * sizeCase / 2);
-    
-    // Décalage horizontal d'un cube pour le centrage de l'affichage
-        screen.x += sizeCase;
+    // Application des formules isométriques standard, dans le repère du contrôle
+    // (même origine que screenFromCase, sinon entités et cases se décalent).
+        screen.x = parseInt((c.x - c.y) * sizeCase) + redressed.x + sizeCase;
+        screen.y = parseInt((c.x + c.y) * sizeCase / 2) + redressed.y;
         return screen;
     };
     createCases(){
@@ -300,6 +363,57 @@ export class MapView extends Control{
                         C2D.cubes[C2D.cubes.length] = c;
             }
 
+        }
+    }
+
+    /** Entités mobiles : celles de la carte, plus celles propres à cette vue. */
+    mobiles(){
+        const mobiles = this.map == null ? [] : this.map.entitys;
+        if(this.#entitys.length == 0) return mobiles;
+        return mobiles.concat(this.#entitys);
+    }
+
+    /**
+     * Construit la vue écran des entités (taille du sprite, ancrage).
+     * Opération lourde : on ne la refait qu'au changement de carte ou de zoom,
+     * pas à chaque image.
+     */
+    createEntitysDraw(){
+        const sizeCase = this.sizeCase;
+        const permanents = this.map == null ? [] : this.map.permanents;
+        const mobiles = this.mobiles();
+
+        this.#permanentsDraw = [];
+        for(let p = 0; p < permanents.length; p++)
+            if(permanents[p] != null)
+                this.#permanentsDraw[this.#permanentsDraw.length] = new EntityDraw(permanents[p], sizeCase, this.#adjusted);
+
+        this.#entitysDraw = [];
+        for(let e = 0; e < mobiles.length; e++)
+            if(mobiles[e] != null)
+                this.#entitysDraw[this.#entitysDraw.length] = new EntityDraw(mobiles[e], sizeCase, this.#adjusted);
+    }
+
+    /**
+     * Range chaque entité dans la case qu'elle occupe et calcule sa position écran.
+     * Refait à chaque image : c'est ce qui permet à un personnage de passer
+     * devant puis derrière un mur au bon moment.
+     */
+    placeEntitysDraw(){
+        for(let c = 0; c < this.#cases.length; c++)
+            this.#cases[c].entitysDraw = [];
+
+        this.placeDraws(this.#permanentsDraw);
+        this.placeDraws(this.#entitysDraw);
+    }
+    placeDraws(draws){
+        for(let i = 0; i < draws.length; i++){
+            const draw = draws[i];
+            const screen = this.screenFromLocation(draw.x, draw.y, draw.z);
+            draw.toScreen(screen.x, screen.y);
+
+            const C2D = this.findCaseLocation(draw.x, draw.y, draw.z);
+            if(C2D != null) C2D.entitysDraw[C2D.entitysDraw.length] = draw;
         }
     }
 
@@ -490,20 +604,22 @@ export class MapView extends Control{
         this.selectedMouse.target = "";  // Réinitialise la cible
         let target = null;
     
-        const permanents = this.map.permanents ?? this.map.Permanents ?? [];
         // D'abord les décors ciblables, puis les mobiles (un bâtiment masque un perso au même cube).
+        const permanents = this.map.permanents;
         for( let p = 0; p < permanents.length; p++)
             if( permanents[p] != null && 
                 permanents[p].canTarget && 
                 this.contains_Entity(permanents[p], this.selectedMouse.x, this.selectedMouse.y, this.selectedMouse.z) )
                 target = permanents[p];
     
-        if(target == null)
-            for( let t = 0; t < this.entitys.length; t++)
-                if( this.entitys[t] != null && 
-                    this.entitys[t].canTarget && 
-                    this.contains_Entity(this.entitys[t], this.selectedMouse.x, this.selectedMouse.y, this.selectedMouse.z) )
-                target = this.entitys[t];
+        if(target == null){
+            const mobiles = this.mobiles();
+            for( let t = 0; t < mobiles.length; t++)
+                if( mobiles[t] != null && 
+                    mobiles[t].canTarget && 
+                    this.contains_Entity(mobiles[t], this.selectedMouse.x, this.selectedMouse.y, this.selectedMouse.z) )
+                target = mobiles[t];
+        }
     
         if(target != null){
             this.selectedMouse.target = target.id;
@@ -637,29 +753,39 @@ export class MapView extends Control{
         && (pY <= y) && (pY > y - width)
         && (pZ >= z) && (pZ < z + height);
     };
-    /** Zones où on ne dessine pas le plafond (vue intérieure). */
+    /**
+     * Recalcule les pièces dont il faut masquer le plafond, d'après l'entité
+     * sélectionnée. Aucune sélection = on remet tous les plafonds.
+     */
+    noCeilingFromSelected(){
+        const entity = this.selectedEntity();
+        if(entity == null) this.#noCeiling = [];
+        else this.noCeilingFrom(entity.x, entity.y, entity.z);
+    };
+    /** Pièces contenant ce point : c'est la carte qui sait, on lui demande. */
+    noCeilingFrom(x, y, z){
+        this.#noCeiling = this.map == null ? [] : this.map.zonesAt(x, y, z);
+        this.#createCubes = true;
+    };
+    /** Ce cube fait-il partie d'un plafond à masquer ? wallCeil décide du sort des murs. */
     containsNoCeiling(x, y, z){
-        for(let i = 0; i < this.#noCeiling.length; i++){
-            const n = this.#noCeiling[i];
-            if(n.x == x && n.y == y && n.z == z) return true;
-        }
+        for(let i = 0; i < this.#noCeiling.length; i++)
+            if(this.#noCeiling[i].hides(x, y, z, this.#wallCeil)) return true;
         return false;
     };
-    /** Accès O(1) dans la grille 3D de this.map. Hors limites → null. */
+    /**
+     * Cube du monde. On demande à la carte au lieu de fouiller sa grille :
+     * MapView ignore ainsi comment les cubes sont rangés, et pourra afficher
+     * aussi bien une carte unique qu'un assemblage de cartes.
+     */
     findCube(x, y, z){
         if(this.map == null) return null;
-        const cubes = this.map.cubes ?? this.map.Cubes;
-        if(!cubes || cubes.length == 0) return null;
-        if(!this.contains_Map(x,y,z, this.map)) return null;
-        return cubes[x]?.[y]?.[z] ?? null;
+        return this.map.cubeAt(x, y, z);
     };
-    contains_Map(pX, pY, pZ, map){
-        const width = map.width ?? map.Width;
-        const height = map.height ?? map.Height;
-        const depth = map.depth ?? map.Depth;
-        return 0 <= pX && pX < width &&
-           0 <= pY && pY < height &&
-           0 <= pZ && pZ < depth;
+    /** Ce point fait-il partie du monde ? (différent de « la donnée est chargée »). */
+    contains_Map(pX, pY, pZ, map = this.map){
+        if(map == null) return false;
+        return map.inBounds(pX, pY, pZ);
     };
     /** Case du viewport (losange affiché), pas un cube monde. */
     findCase(x, y){
@@ -674,13 +800,13 @@ export class MapView extends Control{
         y = y - this.location.y - (z - this.location.z);
         return this.findCase(x,y);
     };
-    /** Permanents de la carte d'abord, puis #entitys. */
+    /** Habitants de la carte d'abord, puis les entités propres à cette vue. */
     findEntityID(id){
+        if(id == null || id === "") return null;
+
         if(this.map != null){
-            const permanents = this.map.permanents ?? this.map.Permanents ?? [];
-            for( let p = 0; p < permanents.length; p++)
-                if(permanents[p].id == id)
-                    return permanents[p];
+            const entity = this.map.findEntity(id);
+            if(entity != null) return entity;
         }
 
         for( let ent = 0; ent < this.entitys.length; ent++)
@@ -693,19 +819,137 @@ export class MapView extends Control{
 };
 
 export class DrawMapView extends Draw {
+
+    #paintIso = null;
+    //showGrid / showNumbers : repères de mise au point, à activer depuis l'éditeur.
+    #showGrid = false;
+    #showNumbers = false;
+    //showHover : losange rouge sur la case survolée.
+    #showHover = true;
+
     constructor(control){
         super(control);
     }
+
+    get showGrid(){ return this.#showGrid; }
+    set showGrid(value){ this.#showGrid = !!value; }
+    get showNumbers(){ return this.#showNumbers; }
+    set showNumbers(value){ this.#showNumbers = !!value; }
+    get showHover(){ return this.#showHover; }
+    set showHover(value){ this.#showHover = !!value; }
+
+    /** Le Paint peut changer (le contrôle peut changer de formulaire) : on resynchronise. */
+    get PaintIso(){
+        if(this.#paintIso == null) this.#paintIso = new PaintIso(this.Paint);
+        else this.#paintIso.paint = this.Paint;
+        return this.#paintIso;
+    }
+
     draw(){
-        const paint = this.control.Paint;
-        //paint.clear();
         super.draw();
 
-        this.drawGrid();
-        this.drawLosange(this.control.case.x, this.control.case.y);
-        this.drawCaseNumbers();
-        //this.drawInfo();
+        this.drawMap();
 
+        if(this.#showGrid) this.drawGrid();
+        if(this.#showNumbers) this.drawCaseNumbers();
+        if(this.#showHover) this.drawLosange(this.control.case.x, this.control.case.y);
+    }
+
+    /**
+     * Le monde, du fond vers l'avant.
+     *
+     * On monte étage par étage, et dans chaque étage on pose d'abord tous les
+     * sols puis tous les volumes. C'est cet ordre qui fait qu'un mur cache bien
+     * ce qui est derrière lui : le peintre couvre au fur et à mesure.
+     */
+    drawMap(){
+        const control = this.control;
+        if(control.map == null) return;
+
+        const paintIso = this.PaintIso;
+        const size = control.sizeCase;
+        const grap = control.grap;
+
+        for(let z = 0; z <= control.maxZ; z++){
+            this.drawFloors(paintIso, z, size, grap);
+            this.drawVolumes(paintIso, z, size, grap);
+        }
+    }
+
+    drawFloors(paintIso, z, size, grap){
+        const cases = this.control.cases;
+        for(let c = 0; c < cases.length; c++){
+            const C2D = cases[c];
+            const x = C2D.screen.x + grap.x;
+            const y = C2D.screen.y + grap.y;
+
+            if(C2D.cubes.length == 0){
+                if(z == 0) this.drawDefault(paintIso, x, y, size);
+                continue;
+            }
+            for(let i = 0; i < C2D.cubes.length; i++){
+                const cube = C2D.cubes[i];
+                if(cube != null && cube.z == z)
+                    this.drawLayer(paintIso, cube.floors, cube.floorsSpeed, x, y, size, false);
+            }
+        }
+    }
+
+    drawVolumes(paintIso, z, size, grap){
+        const cases = this.control.cases;
+        for(let c = 0; c < cases.length; c++){
+            const C2D = cases[c];
+            const x = C2D.screen.x + grap.x;
+            const y = C2D.screen.y + grap.y;
+
+            for(let i = 0; i < C2D.cubes.length; i++){
+                const cube = C2D.cubes[i];
+                if(cube != null && cube.z == z)
+                    this.drawLayer(paintIso, cube.volumes, cube.volumesSpeed, x, y, size, true);
+            }
+            // Les entités s'intercalent entre les volumes du même étage.
+            for(let d = 0; d < C2D.entitysDraw.length; d++)
+                if(C2D.entitysDraw[d].z == z)
+                    this.drawEntity(paintIso, C2D.entitysDraw[d], grap);
+        }
+    }
+
+    /** Sol de repère là où la carte est vide : indispensable pour éditer dans le vide. */
+    drawDefault(paintIso, x, y, size){
+        this.drawLayer(paintIso, this.control.floorsDefault, 0, x, y, size, false);
+    }
+
+    /**
+     * Empile les textures d'une couche sur une case.
+     * speed > 0 : le lot est une animation, on n'affiche qu'une image, choisie
+     * d'après l'horloge, ce qui synchronise toutes les cases entre elles.
+     */
+    drawLayer(paintIso, names, speed, x, y, size, volume){
+        if(names == null || names.length == 0) return;
+
+        const rectY = volume ? y - size : y;
+        const rectHeight = volume ? size * 2 : size;
+
+        if(speed > 0){
+            const i = Math.floor(names.length * ((Date.now() % speed) / speed));
+            this.drawTexture(paintIso, names[i], x - size, rectY, size * 2, rectHeight);
+            return;
+        }
+        for(let i = 0; i < names.length; i++)
+            this.drawTexture(paintIso, names[i], x - size, rectY, size * 2, rectHeight);
+    }
+
+    drawTexture(paintIso, name, x, y, width, height){
+        const texture = Textures.get(name);
+        if(texture == null) return;
+        texture.draw(paintIso, x, y, width, height);
+    }
+
+    /** Le rectangle du sprite est déjà calculé par EntityDraw : on le remplit. */
+    drawEntity(paintIso, entityDraw, grap){
+        this.drawTexture(paintIso, entityDraw.body,
+            entityDraw.screen.x + grap.x, entityDraw.screen.y + grap.y,
+            entityDraw.width, entityDraw.height);
     }
     drawGrid(){
         const paint = this.Paint;
@@ -830,27 +1074,25 @@ export class DrawMapView extends Draw {
         paint.drawText(col, line+space*5, `Size case: ${sizeCase}`, font);
         paint.drawText(col, line+space*6, `Screen: ${screen.x}, ${screen.y}`, font);
     }
+    /**
+     * Surligne la case (cx, cy).
+     * Le losange est tracé directement à partir de sa position ; l'ancienne
+     * version testait chaque pixel de la fenêtre, soit plus d'un million de
+     * conversions par image.
+     */
     drawLosange(cx, cy){
-        const paint = this.Paint;
         const control = this.control;
-        const ctx = paint.context;
-        //const rect = control.redress();
-        const rect = control.Rectangle.rectangleBackground();
-        const width = control.form.Size.width;
-        const height = control.form.Size.height;
-        const left = rect.x;
-        const top = rect.y;
-        
-        ctx.fillStyle = "#ff0000";
-        for(let x = 0; x < width; x++){
-            for(let y = 0; y < height; y++){
-                const c = control.caseFromScreen(x, y);
-                if(c.x === cx && c.y === cy){
-                    // Dessiner un pixel (fillRect 1x1)
-                    ctx.fillRect(x, y, 1, 1);
-                }
-            }
-        }
+        const paintIso = this.PaintIso;
+        const size = control.sizeCase;
+        const grap = control.grap;
+
+        const C2D = control.findCase(cx, cy);
+        const screen = C2D != null ? C2D.screen : control.screenFromCase(cx, cy);
+        const x = screen.x + grap.x;
+        const y = screen.y + grap.y;
+
+        paintIso.withAlpha(0.35, () => paintIso.fillLosange(x, y, size, "#ff0000"));
+        paintIso.strokeLosange(x, y, size, "#ff0000", 2);
     }
 }
 

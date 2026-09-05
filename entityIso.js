@@ -89,8 +89,14 @@ export class Entity{
         this.#bodyAnimated = options.bodyAnimated ?? options.Body_Animated ?? false;
         this.#map = options.map ?? options.Map ?? null;
         this.#move = toMove(options.move ?? options.Move);
+        // Une entité qui peut marcher a forcément besoin de son carnet de route :
+        // sans lui, le calcul de chemin refuse de la faire bouger.
+        if(this.#move == null && this.#canMove) this.#move = Entity.emptyMove();
         this.#moveDraw = toMoveDraw(options.moveDraw ?? options.MoveDraw, x, y, z, this.#adjustment);
     }
+
+    /** Carnet de route vierge. speed = durée d'un pas, à régler par le jeu. */
+    static emptyMove(){ return toMove({ speed: 5 }); }
 
     get id(){ return this.#id; }
     set id(value){ this.#id = value ?? ""; }
@@ -108,7 +114,10 @@ export class Entity{
     get direction(){ return this.#direction; }
     set direction(value){ this.#direction = value ?? 6; }
     get canMove(){ return this.#canMove; }
-    set canMove(value){ this.#canMove = !!value; }
+    set canMove(value){
+        this.#canMove = !!value;
+        if(this.#canMove && this.#move == null) this.#move = Entity.emptyMove();
+    }
     get canTarget(){ return this.#canTarget; }
     set canTarget(value){ this.#canTarget = !!value; }
     get cross(){ return this.#cross; }
@@ -134,5 +143,20 @@ export class Entity{
         return (px <= this.#x) && (px > this.#x - this.#width)
             && (py <= this.#y) && (py > this.#y - this.#width)
             && (pz >= this.#z) && (pz < this.#z + this.#height);
+    }
+
+    /**
+     * Les champs privés sont invisibles pour JSON.stringify : on les expose ici.
+     * map est volontairement omis : c'est la carte qui contient l'entité, pas l'inverse.
+     */
+    toJSON(){
+        return {
+            id: this.#id, x: this.#x, y: this.#y, z: this.#z,
+            width: this.#width, height: this.#height,
+            adjustment: this.#adjustment, direction: this.#direction,
+            canMove: this.#canMove, canTarget: this.#canTarget, cross: this.#cross,
+            body: this.#body, bodyStand: this.#bodyStand, bodyAnimated: this.#bodyAnimated,
+            move: this.#move
+        };
     }
 }
