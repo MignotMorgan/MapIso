@@ -4,7 +4,7 @@ import { CoreIso } from "./coreIso.js";
 import { FactoryMapView } from './Controls/factoryIso.js';
 import { DemoWorld } from './demoIso.js';
 
-window.onload = ()=>{
+function start(){
     const factoryform = new FactoryForm();
     const form = factoryform.create(100, 100, 1600, 800);
     form.id = "formMap";
@@ -42,4 +42,9 @@ window.onload = ()=>{
     controlInfoIso.canResize = true;
     controlInfoIso.mapView = mapView;
     form.add(controlInfoIso);
-};
+}
+
+if(document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', start);
+else
+    start();
