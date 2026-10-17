@@ -1,5 +1,5 @@
 import { Core } from 'Control/core.js';
-import { Point, CasePoint } from '../pointIso.js';
+import { Point, CasePoint } from './point.js';
 
 /**
  * Le projecteur isométrique 2:1.
@@ -13,22 +13,22 @@ import { Point, CasePoint } from '../pointIso.js';
  */
 export class Projector{
 
-    #view = null;
+    #mapView = null;
 
-    constructor(view){
-        this.#view = view;
+    constructor(mapView){
+        this.#mapView = mapView;
     }
 
-    get view(){ return this.#view; }
+    get mapView(){ return this.#mapView; }
 
     /**
      * Origine et taille du losange visible, dans le repère du formulaire.
      * L'ajustement de revise décale le dessin sans bouger le contrôle.
      */
     redress(){
-        const view = this.#view;
-        const rect = view.Rectangle.rectangleBackground();
-        const adjustment = view.revise.adjustment;
+        const mapView = this.#mapView;
+        const rect = mapView.Rectangle.rectangleBackground();
+        const adjustment = mapView.revise.adjustment;
         return {
             x: rect.x + adjustment.x,
             y: rect.y + adjustment.y,
@@ -43,7 +43,7 @@ export class Projector{
      * formulaire, et comparer les deux décale toute détection de clic.
      */
     mouseFromScreen(){
-        const form = this.#view.form;
+        const form = this.#mapView.form;
         return new Point(Core.mouse.x - form.Inside.x,
                          Core.mouse.y - form.Inside.y);
     }
@@ -54,7 +54,7 @@ export class Projector{
     }
 
     caseFromScreen(x, y){
-        const sizeCase = this.#view.sizeCase;
+        const sizeCase = this.#mapView.sizeCase;
         const redressed = this.redress();
         const c = new CasePoint();
 
@@ -76,7 +76,7 @@ export class Projector{
     }
 
     screenFromCase(x, y){
-        const sizeCase = this.#view.sizeCase;
+        const sizeCase = this.#mapView.sizeCase;
         const redressed = this.redress();
         return new Point(((x - y) * sizeCase) + redressed.x + sizeCase,
                          ((x + y) * sizeCase / 2) + redressed.y);
@@ -87,7 +87,7 @@ export class Projector{
      * monter d'un cube recule d'une case en x et en y.
      */
     caseFromLocation(x, y, z){
-        const location = this.#view.location;
+        const location = this.#mapView.location;
         return new CasePoint(
             x - location.x - (z - location.z),
             y - location.y - (z - location.z)

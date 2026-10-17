@@ -1,4 +1,5 @@
-import { Pathfinding } from '../Pathfinding.js';
+import { Pathfinding } from './pathfinding.js';
+import { Point } from './point.js';
 
 /**
  * La sélection sur la carte.
@@ -11,39 +12,39 @@ import { Pathfinding } from '../Pathfinding.js';
  */
 export class Selection{
 
-    #view = null;
-    #selected = { ID:"", Multi:[], Target:"" };
+    #mapView = null;
+    #selected = { id:"", multi:[], target:"" };
     #target = {id:"", case:null, cube:null};
-    #selectedMulti = { Source:{X:0,Y:0}, Destination:{X:0,Y:0}, Active:false };
+    #selectedMulti = { source: new Point(), destination: new Point(), active:false };
     #selectedMouse = {power:null, target:"", x:0, y:0, z:0, range:3};
 
-    constructor(view){
-        this.#view = view;
+    constructor(mapView){
+        this.#mapView = mapView;
     }
 
-    get view(){ return this.#view; }
+    get mapView(){ return this.#mapView; }
     get selected(){ return this.#selected; }
     get target(){ return this.#target; }
     get selectedMulti(){ return this.#selectedMulti; }
     get selectedMouse(){ return this.#selectedMouse; }
 
-    selectedEntity(){ return this.#view.findEntityID(this.#selected.ID); }
-    selectedTarget(){ return this.#view.findEntityID(this.#selected.Target); }
+    selectedEntity(){ return this.#mapView.findEntity(this.#selected.id); }
+    selectedTarget(){ return this.#mapView.findEntity(this.#selected.target); }
 
     /** Choisit une entité. La vue met à jour les plafonds à masquer. */
     select(id){
-        this.#selected.ID = id ?? "";
-        this.#view.noCeilingFromSelected();
+        this.#selected.id = id ?? "";
+        this.#mapView.noCeilingFromSelected();
         return this.selectedEntity();
     }
 
     /** Envoie l'entité choisie vers un cube. False si rien n'est choisi ou si le trajet est impossible. */
     moveSelectedTo(cube){
-        const view = this.#view;
-        if(cube == null || view.map == null) return false;
+        const mapView = this.#mapView;
+        if(cube == null || mapView.worldMap == null) return false;
         const entity = this.selectedEntity();
         if(entity == null) return false;
-        return new Pathfinding(entity.x, entity.y, entity.z, view.map)
+        return new Pathfinding(entity.x, entity.y, entity.z, mapView.worldMap)
                     .moveTo(entity, cube.x, cube.y, cube.z);
     }
 
@@ -51,11 +52,11 @@ export class Selection{
      * Clic : case, sol, et entité sous le curseur (rectangle du sprite).
      */
     onTarget(){
-        const view = this.#view;
-        const C2D = view.findCase(view.case.x, view.case.y);
-        this.#target.case = C2D;
-        this.#target.cube = C2D != null ? C2D.toFloors() : null;
-        this.#target.id = this.#hitSprite(view.permanentsDraw.concat(view.entitysDraw));
+        const mapView = this.#mapView;
+        const c = mapView.findCase(mapView.casePoint.x, mapView.casePoint.y);
+        this.#target.case = c;
+        this.#target.cube = c != null ? c.floor() : null;
+        this.#target.id = this.#hitSprite(mapView.permanentDraws.concat(mapView.entityDraws));
     }
 
     /**
@@ -63,25 +64,25 @@ export class Selection{
      * cases de l'entité choisie, puis cible 3D ou rectangle de sprite.
      */
     onSelectedMouse(){
-        const view = this.#view;
-        const pointed = view.caseFromMouse();
-        const C2D = pointed == null ? null : view.findCase(pointed.x, pointed.y);
+        const mapView = this.#mapView;
+        const pointed = mapView.caseFromMouse();
+        const c = pointed == null ? null : mapView.findCase(pointed.x, pointed.y);
         let x = 0;
         let y = 0;
         let z = 0;
 
-        if(C2D != null && C2D.cubes.length > 0){
-            const top = C2D.cubes[C2D.cubes.length - 1];
+        if(c != null && c.cubes.length > 0){
+            const top = c.cubes[c.cubes.length - 1];
             x = top.x;
             y = top.y;
             z = top.z;
         } else {
-            x = view.location.x + view.case.x;
-            y = view.location.y + view.case.y;
-            z = view.location.z;
+            x = mapView.location.x + mapView.casePoint.x;
+            y = mapView.location.y + mapView.casePoint.y;
+            z = mapView.location.z;
         }
 
-        if(this.#selected.ID !== "" && this.#selectedMouse.range > 0){
+        if(this.#selected.id !== "" && this.#selectedMouse.range > 0){
             const entity = this.selectedEntity();
             if(entity != null){
                 x = Selection.#clamp(x, entity.x, this.#selectedMouse.range);
@@ -94,62 +95,52 @@ export class Selection{
         this.#selectedMouse.y = y;
         this.#selectedMouse.z = z;
 
-        if(view.map == null) return;
+        if(mapView.worldMap == null) return;
 
         this.#selectedMouse.target = "";
-        let target = this.#hitVolume(view.map.permanents, x, y, z);
-        if(target == null) target = this.#hitVolume(view.mobiles(), x, y, z);
+        let target = this.#hitVolume(mapView.worldMap.permanents, x, y, z);
+        if(target == null) target = this.#hitVolume(mapView.mobiles(), x, y, z);
 
-        this.#selectedMouse.target = target != null ? target.id : this.#hitSprite(view.entitysDraw);
+        this.#selectedMouse.target = target != null ? target.id : this.#hitSprite(mapView.entityDraws);
     }
 
-    selectedMulti_Down(){
+    selectedMultiDown(){
         const multi = this.#selectedMulti;
-        const inside = this.#view.mouseFromScreen();
-        multi.Active = true;
-        this.#selected.Multi = [];
-        multi.Source.X = inside.x;
-        multi.Source.Y = inside.y;
-        multi.Destination.X = inside.x;
-        multi.Destination.Y = inside.y;
+        const inside = this.#mapView.mouseFromScreen();
+        multi.active = true;
+        this.#selected.multi = [];
+        multi.source.set(inside.x, inside.y);
+        multi.destination.set(inside.x, inside.y);
     }
 
-    selectedMulti_Up(){
-        this.#selectedMulti.Active = false;
+    selectedMultiUp(){
+        this.#selectedMulti.active = false;
     }
 
     /** Toute EntityDraw dont le sprite coupe le rectangle. */
-    selectedMulti_Move(){
+    selectedMultiMove(){
         const selected = this.#selected;
         const multi = this.#selectedMulti;
-        const inside = this.#view.mouseFromScreen();
-        selected.Multi = [];
-        multi.Destination.X = inside.x;
-        multi.Destination.Y = inside.y;
+        const inside = this.#mapView.mouseFromScreen();
+        selected.multi = [];
+        multi.destination.set(inside.x, inside.y);
 
-        const draws = this.#view.entitysDraw;
+        const draws = this.#mapView.entityDraws;
         for(let i = 0; i < draws.length; i++){
             const draw = draws[i];
             if(!Selection.#overlaps(multi, draw)) continue;
-            selected.Multi[selected.Multi.length] = draw.id;
+            selected.multi[selected.multi.length] = draw.id;
         }
     }
 
     /**
      * Point 3D dans le volume d'une entité.
-     * Délègue à Entity.contains ; sinon lit width/x camelCase ou PascalCase.
+     * Délègue à Entity.contains.
      */
-    contains(entity, pX, pY, pZ){
+    contains(entity, x, y, z){
         if(entity == null) return false;
-        if(typeof entity.contains === "function") return entity.contains(pX, pY, pZ);
-        const width = entity.width ?? entity.Width;
-        const height = entity.height ?? entity.Height;
-        const x = entity.x ?? entity.X;
-        const y = entity.y ?? entity.Y;
-        const z = entity.z ?? entity.Z;
-        return (pX <= x) && (pX > x - width)
-            && (pY <= y) && (pY > y - width)
-            && (pZ >= z) && (pZ < z + height);
+        if(typeof entity.contains === "function") return entity.contains(x, y, z);
+        return false;
     }
 
     #hitVolume(list, x, y, z){
@@ -164,7 +155,7 @@ export class Selection{
     }
 
     #hitSprite(draws){
-        const mouse = this.#view.mouseFromScreen();
+        const mouse = this.#mapView.mouseFromScreen();
         const mx = mouse.x;
         const my = mouse.y;
         for(let i = 0; i < draws.length; i++){
@@ -183,14 +174,14 @@ export class Selection{
     }
 
     static #overlaps(multi, draw){
-        const left = Math.min(multi.Source.X, multi.Destination.X);
-        const right = Math.max(multi.Source.X, multi.Destination.X);
-        const top = Math.min(multi.Source.Y, multi.Destination.Y);
-        const bottom = Math.max(multi.Source.Y, multi.Destination.Y);
+        const left = Math.min(multi.source.x, multi.destination.x);
+        const right = Math.max(multi.source.x, multi.destination.x);
+        const top = Math.min(multi.source.y, multi.destination.y);
+        const bottom = Math.max(multi.source.y, multi.destination.y);
         if(draw.screen.x > right) return false;
         if(draw.screen.x + draw.width < left) return false;
         if(draw.screen.y > bottom) return false;
-        if(draw.screen.y + draw.width < top) return false;
+        if(draw.screen.y + draw.height < top) return false;
         return true;
     }
 }

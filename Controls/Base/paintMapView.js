@@ -1,4 +1,5 @@
 import { Paint } from 'Control/paint.js';
+import { Point } from '../../point.js';
 
 /**
  * Le Paint de la vue isométrique.
@@ -32,10 +33,10 @@ export class PaintMapView extends Paint{
     losange(x, y, size){
         const half = size / 2;
         return [
-            {x:x,        y:y},
-            {x:x + size, y:y + half},
-            {x:x,        y:y + size},
-            {x:x - size, y:y + half}
+            new Point(x,        y),
+            new Point(x + size, y + half),
+            new Point(x,        y + size),
+            new Point(x - size, y + half)
         ];
     }
 

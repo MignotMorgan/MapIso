@@ -1,6 +1,6 @@
 import { Draw } from 'Control/draw.js';
 import { PaintMapView } from './paintMapView.js';
-import { Textures } from '../textureIso.js';
+import { Textures } from '../../texture.js';
 
 /**
  * Le peintre de la carte.
@@ -55,7 +55,7 @@ export class DrawMapView extends Draw {
         this.drawMap();
         if(this.#showGrid) this.drawGrid();
         if(this.#showNumbers) this.drawCaseNumbers();
-        if(this.#showHover) this.drawLosange(this.control.case.x, this.control.case.y);
+        if(this.#showHover) this.drawLosange(this.control.casePoint.x, this.control.casePoint.y);
     }
 
     /**
@@ -67,24 +67,24 @@ export class DrawMapView extends Draw {
      */
     drawMap(){
         const control = this.control;
-        if(control.map == null) return;
+        if(control.worldMap == null) return;
 
         const paint = this.Paint;
         const size = control.sizeCase;
-        const grap = control.grap;
+        const grab = control.grab;
 
         for(let z = 0; z <= control.maxZ; z++){
-            this.drawFloors(paint, z, size, grap);
-            this.drawVolumes(paint, z, size, grap);
+            this.drawFloors(paint, z, size, grab);
+            this.drawVolumes(paint, z, size, grab);
         }
     }
 
-    drawFloors(paint, z, size, grap){
+    drawFloors(paint, z, size, grab){
         const cases = this.control.cases;
         for(let c = 0; c < cases.length; c++){
             const C2D = cases[c];
-            const x = C2D.screen.x + grap.x;
-            const y = C2D.screen.y + grap.y;
+            const x = C2D.screen.x + grab.x;
+            const y = C2D.screen.y + grab.y;
 
             if(C2D.cubes.length == 0){
                 if(z == 0) this.drawDefault(paint, x, y, size);
@@ -98,12 +98,12 @@ export class DrawMapView extends Draw {
         }
     }
 
-    drawVolumes(paint, z, size, grap){
+    drawVolumes(paint, z, size, grab){
         const cases = this.control.cases;
         for(let c = 0; c < cases.length; c++){
             const C2D = cases[c];
-            const x = C2D.screen.x + grap.x;
-            const y = C2D.screen.y + grap.y;
+            const x = C2D.screen.x + grab.x;
+            const y = C2D.screen.y + grab.y;
 
             for(let i = 0; i < C2D.cubes.length; i++){
                 const cube = C2D.cubes[i];
@@ -111,9 +111,9 @@ export class DrawMapView extends Draw {
                     this.drawLayer(paint, cube.volumes, cube.volumesSpeed, x, y, size, true);
             }
             // Les entités s'intercalent entre les volumes du même étage.
-            for(let d = 0; d < C2D.entitysDraw.length; d++)
-                if(C2D.entitysDraw[d].z == z)
-                    this.drawEntity(paint, C2D.entitysDraw[d], grap);
+            for(let d = 0; d < C2D.entityDraws.length; d++)
+                if(C2D.entityDraws[d].z == z)
+                    this.drawEntity(paint, C2D.entityDraws[d], grab);
         }
     }
 
@@ -149,9 +149,9 @@ export class DrawMapView extends Draw {
     }
 
     /** Le rectangle du sprite est déjà calculé par EntityDraw : on le remplit. */
-    drawEntity(paint, entityDraw, grap){
+    drawEntity(paint, entityDraw, grab){
         this.drawTexture(paint, entityDraw.body,
-            entityDraw.screen.x + grap.x, entityDraw.screen.y + grap.y,
+            entityDraw.screen.x + grab.x, entityDraw.screen.y + grab.y,
             entityDraw.width, entityDraw.height);
     }
     drawGrid(){
@@ -206,77 +206,6 @@ export class DrawMapView extends Draw {
             }
         }
     }
-    drawGrid2(){
-        const paint = this.Paint;
-        const control = this.control;
-        const ctx = paint.context;
-        const sizeCase = control.sizeCase;
-        const nbrCasesFrame = control.nbrCases;
-
-        const color = "#2bec05ff";
-        const lineWidth = 2;
-
-        for( let x = 0; x <= nbrCasesFrame; x++){
-            let from = control.screenFromCase(x, 0-x);
-            let to = control.screenFromCase((nbrCasesFrame*2)-x, 0-x);
-            paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
-            
-            from = control.screenFromCase(x, x);
-            to = control.screenFromCase((nbrCasesFrame*2)-x, x);
-            paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
-
-            from = control.screenFromCase(x, 0-x);
-            to = control.screenFromCase(x, x);
-            paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
-
-            from = control.screenFromCase(nbrCasesFrame+x, 0-nbrCasesFrame+x);
-            to = control.screenFromCase(nbrCasesFrame+x, nbrCasesFrame-x);
-            paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
-        }
-        paint.borderRectangle(control.frame.x, control.frame.y, control.frame.width, control.frame.height, "black", 2);
-    }
-    drawCaseNumbers2(){
-        const control = this.control;
-        const paint = this.Paint;
-        const sizeCase = control.sizeCase;
-        const nbrCasesFrame = control.nbrCases;//Frame();
-        const font = { family: "Arial", size: 10, style: "bold", color: "#000" };
-        
-        for(let x = 0; x <= nbrCasesFrame*2; x++){
-            for(let y = 0; y <= nbrCasesFrame*2; y++){
-                let c = control.screenFromCase(x, -y);
-                if(x + y <= nbrCasesFrame*2 && x - y >= -1 && x !== nbrCasesFrame*2){
-                    paint.drawText(c.x, c.y+sizeCase/2, `${x},${y}`, font);
-                }
-                c = control.screenFromCase(x, y);
-                if(x + y <= (nbrCasesFrame*2)-1 && x - y >= 0 && y !== 0){
-                    paint.drawText(c.x-5, c.y+sizeCase/2, `${x},${y}`, font);
-                }
-            }
-        }
-    }
-    drawInfo(){ //SUPPRIMER!!!
-        const paint = this.Paint;
-        const control = this.control;
-        
-        const font = { family: "Arial", size: 12, style: "bold", color: "#000" };
-        const inside = control.Mouse.inside();
-        const c = control.case;
-        const nbrCasesFrame = control.nbrCases;
-        const sizeCase = control.sizeCase;
-        const screen = control.screenFromCase(c.x, c.y);
-        const rect = control.Rectangle.rectangleBackground();
-        const col = 50;//rect.x + 10;
-        const line = 50;//rect.y;
-        const space = 15;
-        
-        paint.drawText(col, line+space, `Inside: ${inside.x}, ${inside.y}`, font);
-        paint.drawText(col, line+space*2, `Case: ${c.x}, ${c.y}`, font);
-        paint.drawText(col, line+space*3, `Adjustment: ${c.adjustment.x}%, ${c.adjustment.y}%`, font);
-        paint.drawText(col, line+space*4, `Nbr cases: ${nbrCasesFrame}`, font);
-        paint.drawText(col, line+space*5, `Size case: ${sizeCase}`, font);
-        paint.drawText(col, line+space*6, `Screen: ${screen.x}, ${screen.y}`, font);
-    }
     /**
      * Surligne la case (cx, cy).
      * Le losange est tracé directement à partir de sa position ; l'ancienne
@@ -287,12 +216,12 @@ export class DrawMapView extends Draw {
         const control = this.control;
         const paint = this.Paint;
         const size = control.sizeCase;
-        const grap = control.grap;
+        const grab = control.grab;
 
         const C2D = control.findCase(cx, cy);
         const screen = C2D != null ? C2D.screen : control.screenFromCase(cx, cy);
-        const x = screen.x + grap.x;
-        const y = screen.y + grap.y;
+        const x = screen.x + grab.x;
+        const y = screen.y + grab.y;
 
         paint.withAlpha(0.35, () => paint.fillLosange(x, y, size, "#ff0000"));
         paint.strokeLosange(x, y, size, "#ff0000", 2);

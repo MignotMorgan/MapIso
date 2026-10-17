@@ -14,11 +14,11 @@ export class Cube{
         this.#y = y;
         this.#z = z;
 
-        this.#floors = options.floors ?? options.Floors ?? [];
-        this.#volumes = options.volumes ?? options.Volumes ?? [];
-        this.#floorsSpeed = options.floorsSpeed ?? options.Floors_Speed ?? 0;
-        this.#volumesSpeed = options.volumesSpeed ?? options.Volumes_Speed ?? 0;
-        this.#cross = options.cross ?? options.Cross ?? false;
+        this.#floors = options.floors ?? [];
+        this.#volumes = options.volumes ?? [];
+        this.#floorsSpeed = options.floorsSpeed ?? 0;
+        this.#volumesSpeed = options.volumesSpeed ?? 0;
+        this.#cross = options.cross ?? false;
     }
 
     get x(){ return this.#x; }

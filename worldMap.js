@@ -1,6 +1,6 @@
-import { CoreIso } from './coreIso.js';
-import { Cube } from './cubeIso.js';
-import { Entity } from './entityIso.js';
+import { CoreMapView } from './Controls/Base/coreMapView.js';
+import { Cube } from './cube.js';
+import { Entity } from './entity.js';
 
 /**
  * Zone rectangulaire du monde (typiquement une pièce) dont le plafond
@@ -53,17 +53,17 @@ export class NoCeilingZone{
             && this.#z < pz;
     }
 
-    /** Reconstruit une zone depuis du JSON (camelCase ou ancien format PascalCase). */
+    /** Reconstruit une zone depuis du JSON. */
     static from(value){
         if(value instanceof NoCeilingZone) return value;
         const v = value ?? {};
         return new NoCeilingZone(
-            v.x ?? v.X ?? 0,
-            v.y ?? v.Y ?? 0,
-            v.z ?? v.Z ?? 0,
-            v.width ?? v.Width ?? 1,
-            v.height ?? v.Height ?? 1,
-            v.depth ?? v.Depth ?? 1
+            v.x ?? 0,
+            v.y ?? 0,
+            v.z ?? 0,
+            v.width ?? 1,
+            v.height ?? 1,
+            v.depth ?? 1
         );
     }
 
@@ -84,7 +84,7 @@ export class NoCeilingZone{
  * entière, une entité occupe un volume width×width au sol et height en hauteur.
  *
  * La classe s'appelle WorldMap et non Map pour ne pas masquer le Map natif de
- * JavaScript ; la propriété reste nommée map partout ailleurs (mapView.map).
+ * JavaScript ; la propriété s'appelle worldMap sur Entity et MapView.
  */
 export class WorldMap{
 
@@ -96,14 +96,14 @@ export class WorldMap{
     #cubes = [];
     //permanents : entités fixes du décor (bâtiments, arbres) chargées avec la carte
     #permanents = [];
-    //entitys : entités mobiles (personnages, objets déplaçables)
-    #entitys = [];
-    //noCeiling : toutes les pièces déclarées sur la carte, pas seulement celles visibles
-    #noCeiling = [];
+    //entities : entités mobiles (personnages, objets déplaçables)
+    #entities = [];
+    //noCeilingZones : toutes les pièces déclarées sur la carte, pas seulement celles visibles
+    #noCeilingZones = [];
 
     /**
      * width/height = taille du sol, depth = nombre d'étages.
-     * options : name, cubes, permanents, entitys, noCeiling.
+     * options : name, cubes, permanents, entities, noCeilingZones.
      */
     constructor(width, height, depth, options = {}){
         this.#width = WorldMap.#toSize(width);
@@ -111,19 +111,19 @@ export class WorldMap{
         this.#depth = WorldMap.#toSize(depth);
         this.#cubes = WorldMap.#emptyGrid(this.#width, this.#height, this.#depth);
 
-        this.#name = options.name ?? options.Name ?? "";
+        this.#name = options.name ?? "";
 
-        const cubes = options.cubes ?? options.Cubes ?? null;
+        const cubes = options.cubes ?? null;
         if(cubes != null) this.loadCubes(cubes);
 
-        const permanents = options.permanents ?? options.Permanents ?? [];
+        const permanents = options.permanents ?? [];
         for(let p = 0; p < permanents.length; p++) this.addPermanent(permanents[p]);
 
-        const entitys = options.entitys ?? options.Entitys ?? [];
-        for(let e = 0; e < entitys.length; e++) this.addEntity(entitys[e]);
+        const entities = options.entities ?? [];
+        for(let e = 0; e < entities.length; e++) this.addEntity(entities[e]);
 
-        const zones = options.noCeiling ?? options.NoCeiling ?? [];
-        for(let n = 0; n < zones.length; n++) this.addNoCeiling(zones[n]);
+        const zones = options.noCeilingZones ?? [];
+        for(let n = 0; n < zones.length; n++) this.addNoCeilingZone(zones[n]);
     }
 
     get name(){ return this.#name; }
@@ -133,8 +133,8 @@ export class WorldMap{
     get depth(){ return this.#depth; }
     get cubes(){ return this.#cubes; }
     get permanents(){ return this.#permanents; }
-    get entitys(){ return this.#entitys; }
-    get noCeiling(){ return this.#noCeiling; }
+    get entities(){ return this.#entities; }
+    get noCeilingZones(){ return this.#noCeilingZones; }
 
     // === GRILLE ===
 
@@ -154,7 +154,7 @@ export class WorldMap{
     /** Crée un cube et le place dans la grille. options : floors, volumes, cross… Retourne le cube. */
     setCube(x, y, z, options = {}){
         if(!this.inBounds(x, y, z)) return null;
-        const cube = CoreIso.FactoryElementIso.createCube(x, y, z, options);
+        const cube = CoreMapView.FactoryWorld.createCube(x, y, z, options);
         this.#cubes[x][y][z] = cube;
         return cube;
     }
@@ -162,9 +162,9 @@ export class WorldMap{
     /** Place un cube déjà construit (chargement réseau, copier-coller de l'éditeur). */
     addCube(cube){
         if(cube == null) return null;
-        const x = cube.x ?? cube.X;
-        const y = cube.y ?? cube.Y;
-        const z = cube.z ?? cube.Z;
+        const x = cube.x;
+        const y = cube.y;
+        const z = cube.z;
         if(!this.inBounds(x, y, z)) return null;
         this.#cubes[x][y][z] = cube;
         return cube;
@@ -201,7 +201,7 @@ export class WorldMap{
         return null;
     }
 
-    /** Remplit tout un étage : map.fillFloor(0, { cross:true, floors:["herbe"] }). */
+    /** Remplit tout un étage : worldMap.fillFloor(0, { cross:true, floors:["herbe"] }). */
     fillFloor(z, options = {}){
         if(z < 0 || z >= this.#depth) return;
         for(let x = 0; x < this.#width; x++)
@@ -209,7 +209,7 @@ export class WorldMap{
                 this.setCube(x, y, z, options);
     }
 
-    /** Parcourt les cellules occupées : map.forEachCube(cube => …). */
+    /** Parcourt les cellules occupées : worldMap.forEachCube(cube => …). */
     forEachCube(action){
         if(typeof action != "function") return;
         for(let x = 0; x < this.#width; x++)
@@ -250,7 +250,7 @@ export class WorldMap{
 
     /** Ajoute une entité mobile déjà construite. */
     addEntity(entity){
-        return this.#attach(entity, this.#entitys);
+        return this.#attach(entity, this.#entities);
     }
 
     /** Ajoute un élément de décor fixe déjà construit. */
@@ -260,12 +260,12 @@ export class WorldMap{
 
     /** Crée une entité mobile et la place sur la carte. options : id, width, body, canMove… */
     spawn(x, y, z, options = {}){
-        return this.addEntity(CoreIso.FactoryElementIso.createEntity(x, y, z, options));
+        return this.addEntity(CoreMapView.FactoryWorld.createEntity(x, y, z, options));
     }
 
     /** Idem pour un décor fixe (bâtiment, arbre). */
     spawnPermanent(x, y, z, options = {}){
-        return this.addPermanent(CoreIso.FactoryElementIso.createEntity(x, y, z, options));
+        return this.addPermanent(CoreMapView.FactoryWorld.createEntity(x, y, z, options));
     }
 
     /** Cherche par identifiant : décors d'abord, puis mobiles. */
@@ -274,24 +274,24 @@ export class WorldMap{
             if(this.#permanents[p] != null && this.#permanents[p].id == id)
                 return this.#permanents[p];
 
-        for(let e = 0; e < this.#entitys.length; e++)
-            if(this.#entitys[e] != null && this.#entitys[e].id == id)
-                return this.#entitys[e];
+        for(let e = 0; e < this.#entities.length; e++)
+            if(this.#entities[e] != null && this.#entities[e].id == id)
+                return this.#entities[e];
 
         return null;
     }
 
     /** Retire une entité (mobile ou décor). Retourne l'entité retirée, ou null. */
     removeEntity(id){
-        const removed = WorldMap.#pull(this.#entitys, id);
+        const removed = WorldMap.#pull(this.#entities, id);
         if(removed != null) return removed;
         return WorldMap.#pull(this.#permanents, id);
     }
 
     /** Toutes les entités dont le volume contient ce point : décor et mobiles confondus. */
-    entitysAt(x, y, z){
+    entitiesAt(x, y, z){
         const found = [];
-        const all = this.#permanents.concat(this.#entitys);
+        const all = this.#permanents.concat(this.#entities);
         for(let i = 0; i < all.length; i++)
             if(all[i] != null && all[i].contains(x, y, z))
                 found[found.length] = all[i];
@@ -300,17 +300,17 @@ export class WorldMap{
 
     // === ZONES SANS PLAFOND ===
 
-    /** Déclare une pièce : addNoCeiling(zone) ou addNoCeiling(x,y,z,width,height,depth). */
-    addNoCeiling(x, y, z, width, height, depth){
+    /** Déclare une pièce : addNoCeilingZone(zone) ou addNoCeilingZone(x,y,z,width,height,depth). */
+    addNoCeilingZone(x, y, z, width, height, depth){
         const zone = (typeof x == "object" || x == null)
             ? NoCeilingZone.from(x)
             : new NoCeilingZone(x, y, z, width, height, depth);
-        this.#noCeiling[this.#noCeiling.length] = zone;
+        this.#noCeilingZones[this.#noCeilingZones.length] = zone;
         return zone;
     }
 
-    clearNoCeiling(){
-        this.#noCeiling = [];
+    clearNoCeilingZones(){
+        this.#noCeilingZones = [];
     }
 
     /**
@@ -319,15 +319,15 @@ export class WorldMap{
      */
     zonesAt(x, y, z){
         const found = [];
-        for(let i = 0; i < this.#noCeiling.length; i++)
-            if(this.#noCeiling[i].contains(x, y, z))
-                found[found.length] = this.#noCeiling[i];
+        for(let i = 0; i < this.#noCeilingZones.length; i++)
+            if(this.#noCeilingZones[i].contains(x, y, z))
+                found[found.length] = this.#noCeilingZones[i];
         return found;
     }
 
     // === SAUVEGARDE ===
 
-    /** Sérialise la carte (JSON.stringify(map) suffit). Seules les cellules occupées sont écrites. */
+    /** Sérialise la carte (JSON.stringify(worldMap) suffit). Seules les cellules occupées sont écrites. */
     toJSON(){
         const cubes = [];
         this.forEachCube(cube => { cubes[cubes.length] = cube; });
@@ -338,19 +338,19 @@ export class WorldMap{
             depth: this.#depth,
             cubes: cubes,
             permanents: this.#permanents,
-            entitys: this.#entitys,
-            noCeiling: this.#noCeiling
+            entities: this.#entities,
+            noCeilingZones: this.#noCeilingZones
         };
     }
 
-    /** Reconstruit une carte depuis du JSON (camelCase ou ancien format PascalCase). */
+    /** Reconstruit une carte depuis du JSON. */
     static from(value){
         if(value instanceof WorldMap) return value;
         const v = value ?? {};
         return new WorldMap(
-            v.width ?? v.Width ?? 0,
-            v.height ?? v.Height ?? 0,
-            v.depth ?? v.Depth ?? 0,
+            v.width ?? 0,
+            v.height ?? 0,
+            v.depth ?? 0,
             v
         );
     }
@@ -361,7 +361,7 @@ export class WorldMap{
     #place(value){
         if(value == null) return;
         if(value instanceof Cube){ this.addCube(value); return; }
-        this.setCube(value.x ?? value.X, value.y ?? value.Y, value.z ?? value.Z, value);
+        this.setCube(value.x, value.y, value.z, value);
     }
 
     // Range l'entité dans la liste voulue et lui donne cette carte comme référence.
@@ -370,9 +370,9 @@ export class WorldMap{
         if(value == null) return null;
         const entity = (value instanceof Entity)
             ? value
-            : CoreIso.FactoryElementIso.createEntity(
-                value.x ?? value.X ?? 0, value.y ?? value.Y ?? 0, value.z ?? value.Z ?? 0, value);
-        entity.map = this;
+            : CoreMapView.FactoryWorld.createEntity(
+                value.x ?? 0, value.y ?? 0, value.z ?? 0, value);
+        entity.worldMap = this;
         list[list.length] = entity;
         return entity;
     }

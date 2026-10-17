@@ -1,25 +1,24 @@
 import { ControlInfo, FactoryControlInfo } from 'Control/Controls/controlinfo.js';
 
-export class ControlInfoIso extends ControlInfo {
-    #mapView;
+export class ControlInfoMapView extends ControlInfo {
+    #mapView = null;
     constructor(){
         super();
     }
     get mapView(){ return this.#mapView; }
     set mapView(value){ this.#mapView = value; }
-    
+
     initialize(){
         super.initialize();
-
     }
 
     tick(){
         super.tick();
         const control = this.control;
-        
-        if( this.mapView !== null){
+
+        if(this.mapView !== null){
             const inside = this.mapView.Mouse.inside();
-            const c = this.mapView.case;
+            const c = this.mapView.casePoint;
             const nbrCasesFrame = this.mapView.nbrCases;
             const sizeCase = this.mapView.sizeCase;
             const screen = this.mapView.screenFromCase(c.x, c.y);
@@ -32,11 +31,10 @@ export class ControlInfoIso extends ControlInfo {
             this.text += `Total cases: ${this.mapView.cases.length} \n`;
             this.text += `Size case: ${sizeCase} \n`;
             this.text += `Screen: ${screen.x}, ${screen.y} \n`;
-            
         }
     }
 }
 
-export class FactoryControlInfoIso extends FactoryControlInfo {
-    createControl(){ return new ControlInfoIso(); }
+export class FactoryControlInfoMapView extends FactoryControlInfo {
+    createControl(){ return new ControlInfoMapView(); }
 }

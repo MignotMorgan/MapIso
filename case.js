@@ -1,13 +1,12 @@
-import { CoreIso } from "./coreIso.js";
-import { Point } from "./pointIso.js";
-export class CaseIso {
+import { Point } from "./point.js";
+export class Case {
     #x = 0;
     #y = 0;
     #adjustment = new Point();
     #screen = new Point();
     #cubes = [];
-    #entitysDraw = [];
-    
+    #entityDraws = [];
+
     constructor(x, y){
         this.#x = x;
         this.#y = y;
@@ -23,19 +22,14 @@ export class CaseIso {
     set screen(value){this.#screen.copy(value);}
     get cubes(){return this.#cubes;}
     set cubes(value){this.#cubes = value;}
-    get entitysDraw(){return this.#entitysDraw;}
-    set entitysDraw(value){this.#entitysDraw = value;}
-    
-    toScreen(){
-        const sizeCase = CoreIso.sizeCase;
-        this.#screen.x = this.#x * sizeCase;
-        this.#screen.y = this.#y * sizeCase;
-    }
+    get entityDraws(){return this.#entityDraws;}
+    set entityDraws(value){this.#entityDraws = value;}
 
-    toFloors(){
+    /** Premier cube traversable en partant du haut de la colonne : le sol cliquable. */
+    floor(){
         for(let i = this.#cubes.length-1; i >=  0; i--)
-            if(this.#cubes[i].cross)  // Si le cube est traversable (sol)
+            if(this.#cubes[i].cross)
                 return this.#cubes[i];
-        return null;  // Aucun sol trouvé
+        return null;
     }
 }

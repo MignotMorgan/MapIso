@@ -134,7 +134,7 @@ export class Textures{
     /** null si le nom est inconnu : l'affichage saute simplement cette couche. */
     static get(name){
         if(name == null) return null;
-        if(typeof name != "string") return Textures.#textures.get(name.name ?? name.Name) ?? null;
+        if(typeof name != "string") return Textures.#textures.get(name.name) ?? null;
         return Textures.#textures.get(name) ?? null;
     }
     static has(name){ return Textures.#textures.has(name); }

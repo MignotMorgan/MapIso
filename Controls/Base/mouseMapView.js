@@ -12,7 +12,7 @@ export class MouseMapView extends Mouse{
         super.hover();
         const control = this.control;
         if(Core.mousehover.control !== control)return;
-        control.case = control.caseFromMouse();
+        control.casePoint = control.caseFromMouse();
     }
 
     /**
@@ -23,7 +23,7 @@ export class MouseMapView extends Mouse{
     clickLeft(){
         super.clickLeft();
         const control = this.control;
-        control.case = control.caseFromMouse();
+        control.casePoint = control.caseFromMouse();
         control.onTarget();
 
         if(control.target.id !== "") control.select(control.target.id);

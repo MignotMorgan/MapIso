@@ -1,4 +1,4 @@
-import { Location } from './pointIso.js';
+import { Location } from './point.js';
 
 /**
  * Un nœud de recherche : un cube atteint, plus le nœud d'où l'on vient.
@@ -7,7 +7,7 @@ import { Location } from './pointIso.js';
  * recopier le trajet à chaque case coûtait très cher) : on garde seulement le
  * parent, et on reconstruit le chemin une seule fois, à la fin, avec street().
  */
-export class Road{
+export class PathNode{
 
     #x = 0;
     #y = 0;
@@ -33,10 +33,10 @@ export class Road{
     /** Remonte les parents et renvoie le trajet complet, du départ jusqu'ici. */
     street(){
         const street = [];
-        let road = this;
-        while(road != null){
-            street[street.length] = new Location(road.x, road.y, road.z);
-            road = road.parent;
+        let node = this;
+        while(node != null){
+            street[street.length] = new Location(node.x, node.y, node.z);
+            node = node.parent;
         }
         return street.reverse();
     }
@@ -49,55 +49,55 @@ export class Road{
  * On explore par cercles concentriques, donc le premier chemin trouvé est
  * toujours le plus court en nombre de pas.
  *
- * Usage : new Pathfinding(x, y, z, map).moveTo(entity, destX, destY, destZ)
- * Le trajet est écrit dans entity.move.street.
+ * Usage : new Pathfinding(x, y, z, worldMap).moveTo(entity, destX, destY, destZ)
+ * Le trajet est écrit dans entity.entityMove.street.
  *
- * map doit exposer cubeAt(x, y, z) — c'est tout. Le moteur ignore donc
+ * worldMap doit exposer cubeAt(x, y, z) — c'est tout. Le moteur ignore donc
  * comment la carte range ses cubes, ce qui la rend remplaçable (une carte
  * unique aujourd'hui, un assemblage de cartes plus tard).
  */
 export class Pathfinding{
 
-    // Les 26 directions, calculées une seule fois pour toutes les recherches.
-    static #directions = null;
+    // Les 26 offsets, calculés une seule fois pour toutes les recherches.
+    static #offsets = null;
 
     #x = 0;
     #y = 0;
     #z = 0;
-    #map = null;
+    #worldMap = null;
     //maxDistance : portée en nombre de pas. Sans limite, une carte immense gèlerait le jeu.
     #maxDistance = 48;
-    //maxRoads : garde-fou absolu sur le nombre de cases explorées.
-    #maxRoads = 20000;
-    //roads : tous les nœuds visités, dans l'ordre de découverte.
-    #roads = [];
+    //maxNodes : garde-fou absolu sur le nombre de cases explorées.
+    #maxNodes = 20000;
+    //pathNodes : tous les nœuds visités, dans l'ordre de découverte.
+    #pathNodes = [];
     //visited : index des cases déjà vues, pour ne jamais repasser au même endroit.
     #visited = new Set();
 
-    constructor(x, y, z, map, options = {}){
+    constructor(x, y, z, worldMap, options = {}){
         this.#x = x;
         this.#y = y;
         this.#z = z;
-        this.#map = map ?? null;
+        this.#worldMap = worldMap ?? null;
         this.#maxDistance = options.maxDistance ?? 48;
-        this.#maxRoads = options.maxRoads ?? 20000;
+        this.#maxNodes = options.maxNodes ?? 20000;
     }
 
     get x(){ return this.#x; }
     get y(){ return this.#y; }
     get z(){ return this.#z; }
-    get map(){ return this.#map; }
-    set map(value){ this.#map = value ?? null; }
+    get worldMap(){ return this.#worldMap; }
+    set worldMap(value){ this.#worldMap = value ?? null; }
     get maxDistance(){ return this.#maxDistance; }
     set maxDistance(value){ this.#maxDistance = value ?? 48; }
-    get maxRoads(){ return this.#maxRoads; }
-    set maxRoads(value){ this.#maxRoads = value ?? 20000; }
-    get roads(){ return this.#roads; }
+    get maxNodes(){ return this.#maxNodes; }
+    set maxNodes(value){ this.#maxNodes = value ?? 20000; }
+    get pathNodes(){ return this.#pathNodes; }
 
     /** Cube du monde. On demande à la carte, on ne fouille jamais sa grille nous-même. */
     findCube(x, y, z){
-        if(this.#map == null) return null;
-        return this.#map.cubeAt(x, y, z);
+        if(this.#worldMap == null) return null;
+        return this.#worldMap.cubeAt(x, y, z);
     }
 
     /** Cette case a-t-elle déjà été explorée ? Réponse immédiate, quelle que soit la taille du monde. */
@@ -110,31 +110,31 @@ export class Pathfinding{
      * Renvoie le nœud d'arrivée, ou null si la case est hors de portée / inaccessible.
      */
     search(x, y, z, entity = null){
-        this.#roads = [];
+        this.#pathNodes = [];
         this.#visited = new Set();
 
         if(entity != null && !entity.canMove) return null;
 
-        const start = new Road(this.#x, this.#y, this.#z);
-        this.#roads[0] = start;
+        const start = new PathNode(this.#x, this.#y, this.#z);
+        this.#pathNodes[0] = start;
         this.#visited.add(Pathfinding.#key(start.x, start.y, start.z));
         if(start.x == x && start.y == y && start.z == z) return start;
 
-        const directions = Pathfinding.directions();
+        const offsets = Pathfinding.offsets();
 
         // File d'attente : on avance avec un curseur au lieu de retirer le premier
         // élément, et surtout sans récursion (une carte immense ferait déborder la pile).
-        for(let head = 0; head < this.#roads.length; head++)
+        for(let head = 0; head < this.#pathNodes.length; head++)
         {
-            const road = this.#roads[head];
-            if(road.distance >= this.#maxDistance) continue;
+            const node = this.#pathNodes[head];
+            if(node.distance >= this.#maxDistance) continue;
 
-            for(let d = 0; d < directions.length; d++)
+            for(let d = 0; d < offsets.length; d++)
             {
-                const direction = directions[d];
-                const nx = road.x + direction.x;
-                const ny = road.y + direction.y;
-                const nz = road.z + direction.z;
+                const offset = offsets[d];
+                const nx = node.x + offset.x;
+                const ny = node.y + offset.y;
+                const nz = node.z + offset.z;
 
                 const key = Pathfinding.#key(nx, ny, nz);
                 if(this.#visited.has(key)) continue;
@@ -144,17 +144,17 @@ export class Pathfinding{
 
                 // Changement d'étage ou diagonale : on frôle des cases voisines,
                 // il faut vérifier qu'elles laissent passer.
-                if(direction.z != 0 || (direction.x != 0 && direction.y != 0)){
-                    const coin = new Coin(road.x, road.y, road.z, direction, (cx, cy, cz) => this.findCube(cx, cy, cz));
-                    if(!coin.movement()) continue;
+                if(offset.z != 0 || (offset.x != 0 && offset.y != 0)){
+                    const corner = new Corner(node.x, node.y, node.z, offset, (cx, cy, cz) => this.findCube(cx, cy, cz));
+                    if(!corner.movement()) continue;
                 }
 
                 this.#visited.add(key);
-                const next = new Road(cube.x, cube.y, cube.z, road);
-                this.#roads[this.#roads.length] = next;
+                const next = new PathNode(cube.x, cube.y, cube.z, node);
+                this.#pathNodes[this.#pathNodes.length] = next;
 
                 if(next.x == x && next.y == y && next.z == z) return next;
-                if(this.#roads.length >= this.#maxRoads) return null;
+                if(this.#pathNodes.length >= this.#maxNodes) return null;
             }
         }
         return null;
@@ -166,9 +166,9 @@ export class Pathfinding{
      * l'appelant doit donc vérifier la longueur avant de faire bouger quoi que ce soit.
      */
     find(x, y, z, entity = null){
-        const road = this.search(x, y, z, entity);
-        if(road == null) return [new Location(x, y, z)];
-        return road.street();
+        const node = this.search(x, y, z, entity);
+        if(node == null) return [new Location(x, y, z)];
+        return node.street();
     }
 
     /**
@@ -179,33 +179,33 @@ export class Pathfinding{
     moveTo(entity, x, y, z){
         if(entity == null) return false;
         if(!entity.canMove) return false;
-        if(entity.move == null) return false;   // pas de buffer de déplacement
+        if(entity.entityMove == null) return false;   // pas de buffer de déplacement
 
-        const road = this.search(x, y, z, entity);
-        if(road == null) return false;
+        const node = this.search(x, y, z, entity);
+        if(node == null) return false;
 
-        return entity.walk(road.street());
+        return entity.walk(node.street());
     }
 
-    /** Les 26 voisins d'une case, construits une seule fois. */
-    static directions(){
-        if(this.#directions != null) return this.#directions;
-        const directions = [];
+    /** Les 26 offsets d'une case, construits une seule fois. */
+    static offsets(){
+        if(this.#offsets != null) return this.#offsets;
+        const offsets = [];
         for(let n = 1; n < 27; n++){
-            const direction = Pathfinding.intToDirection(n);
-            if(direction.x == 0 && direction.y == 0 && direction.z == 0) continue;
-            directions[directions.length] = direction;
+            const offset = Pathfinding.offset(n);
+            if(offset.x == 0 && offset.y == 0 && offset.z == 0) continue;
+            offsets[offsets.length] = offset;
         }
-        this.#directions = directions;
-        return directions;
+        this.#offsets = offsets;
+        return offsets;
     }
 
     /**
-     * n 1..26 → (x,y,z) ∈ {-1,0,1}.
+     * n 1..26 → Location (dx, dy, dz) ∈ {-1,0,1}.
      * n%9 = plan horizontal (0 = rester, 1 N … 8 S-W).
      * n>=18 monte, 9..17 descend.
      */
-    static intToDirection(n){
+    static offset(n){
         let x = 0;
         let y = 0;
         let z = 0;
@@ -223,10 +223,8 @@ export class Pathfinding{
         }
         if (n >= 18) z = 1;
         else if (n >= 9) z = -1;
-        return {x:x, y:y, z:z};
+        return new Location(x, y, z);
     }
-    /** Conservé pour compatibilité : préférer Pathfinding.directions(). */
-    intToDirection(n){ return Pathfinding.intToDirection(n); }
 
     static #key(x, y, z){ return x + "," + y + "," + z; }
 }
@@ -234,7 +232,7 @@ export class Pathfinding{
 /**
  * Le passage entre deux cases n'est pas seulement une affaire de départ et
  * d'arrivée : on frôle des cases voisines en chemin, et elles peuvent barrer
- * la route. Coin regarde ces cases-là.
+ * la route. Corner regarde ces cases-là.
  *
  * Un cube absent, c'est du vide : le vide ne bloque rien, c'est même par là
  * qu'on descend d'une plateforme. Seul un cube présent et non franchissable
@@ -242,24 +240,24 @@ export class Pathfinding{
  *
  * findCube est injecté (Pathfinding.findCube) pour ne pas dépendre d'un global.
  */
-export class Coin{
+export class Corner{
 
     #axeX = null;
     #axeY = null;
     #axeD = null;
     #head = null;
 
-    constructor(x, y, z, d, findCube){
-        if (d.z > 0){
+    constructor(x, y, z, offset, findCube){
+        if (offset.z > 0){
             // On monte : on traverse le palier supérieur, et sa propre verticale.
-            this.#axeX = findCube(x + d.x, y, z + d.z);
-            this.#axeY = findCube(x, y + d.y, z + d.z);
-            this.#axeD = findCube(x + d.x, y + d.y, z + d.z);
-            this.#head = findCube(x, y, z + d.z);
+            this.#axeX = findCube(x + offset.x, y, z + offset.z);
+            this.#axeY = findCube(x, y + offset.y, z + offset.z);
+            this.#axeD = findCube(x + offset.x, y + offset.y, z + offset.z);
+            this.#head = findCube(x, y, z + offset.z);
         } else {
-            this.#axeX = findCube(x + d.x, y, z);
-            this.#axeY = findCube(x, y + d.y, z);
-            this.#axeD = findCube(x + d.x, y + d.y, z);
+            this.#axeX = findCube(x + offset.x, y, z);
+            this.#axeY = findCube(x, y + offset.y, z);
+            this.#axeD = findCube(x + offset.x, y + offset.y, z);
         }
     }
 
@@ -273,11 +271,11 @@ export class Coin{
 
     movement(){
         // La case qu'on traverse en chemin.
-        if (Coin.blocked(this.#axeD)) return false;
+        if (Corner.blocked(this.#axeD)) return false;
         // En montant, on ne passe pas à travers un plafond.
-        if (Coin.blocked(this.#head)) return false;
+        if (Corner.blocked(this.#head)) return false;
         // Les deux côtés pleins = coin fermé, on couperait à travers un mur.
-        if (Coin.blocked(this.#axeX) && Coin.blocked(this.#axeY)) return false;
+        if (Corner.blocked(this.#axeX) && Corner.blocked(this.#axeY)) return false;
         return true;
     }
 }

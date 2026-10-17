@@ -1,4 +1,34 @@
-import { Point, Location, Direction } from './pointIso.js';
+import { Point, Location } from './point.js';
+
+/**
+ * Les huit orientations du voisinage d'une case, dans l'ordre qu'attendent les
+ * planches de sprites : 0 nord, 1 est, 2 sud, 3 ouest, puis les diagonales
+ * 4 nord-ouest, 5 nord-est, 6 sud-est, 7 sud-ouest.
+ *
+ * NONE (-1) : aucune orientation, la valeur d'un objet posé qui ne se tourne
+ * vers rien. Distinct de SOUTH_EAST (6).
+ */
+export class Direction{
+
+    static NONE = -1;
+    static NORTH = 0;
+    static EAST = 1;
+    static SOUTH = 2;
+    static WEST = 3;
+    static NORTH_WEST = 4;
+    static NORTH_EAST = 5;
+    static SOUTH_EAST = 6;
+    static SOUTH_WEST = 7;
+
+    /** Vers où se tourner pour aller d'une case à une autre. */
+    static between(x, y, xDest, yDest){
+        if(x == xDest && y == yDest) return Direction.NONE;
+        if(x == xDest) return y > yDest ? Direction.NORTH : Direction.SOUTH;
+        if(y == yDest) return x < xDest ? Direction.EAST : Direction.WEST;
+        if(x > xDest) return y > yDest ? Direction.NORTH_WEST : Direction.SOUTH_WEST;
+        return y > yDest ? Direction.NORTH_EAST : Direction.SOUTH_EAST;
+    }
+}
 
 /**
  * Le pas en cours d'une entité : la case qu'elle quitte, celle où elle va, et
@@ -63,13 +93,13 @@ export class EntityMove{
     #adjustment = null;
 
     constructor(options = {}){
-        this.#id = options.id ?? options.ID ?? 0;
-        this.street = options.street ?? options.Street ?? [];
-        this.#speed = options.speed ?? options.Speed ?? 400;
-        this.#index = options.index ?? options.Index ?? 0;
-        this.#step = options.step ?? options.Step ?? 0;
-        this.#body = options.body ?? options.Body ?? null;
-        this.#adjustment = Point.from(options.adjustment ?? options.Adjustment);
+        this.#id = options.id ?? 0;
+        this.street = options.street ?? [];
+        this.#speed = options.speed ?? 400;
+        this.#index = options.index ?? 0;
+        this.#step = options.step ?? 0;
+        this.#body = options.body ?? null;
+        this.#adjustment = Point.from(options.adjustment);
     }
 
     get id(){ return this.#id; }

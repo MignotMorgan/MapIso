@@ -39,14 +39,12 @@ export class Point{
     toString(){ return this.#x + ", " + this.#y; }
 
     /**
-     * Accepte un Point, un {x, y}, l'ancien JSON {X, Y}, ou rien du tout.
-     * Regrouper cette tolérance ici évite de la répandre dans tout le moteur :
-     * le jour où l'ancienne notation disparaît, il n'y a qu'une ligne à retirer.
+     * Accepte un Point, un {x, y}, ou rien du tout.
      */
     static from(value){
         if(value instanceof Point) return value;
         const v = value ?? {};
-        return new Point(v.x ?? v.X ?? 0, v.y ?? v.Y ?? 0);
+        return new Point(v.x ?? 0, v.y ?? 0);
     }
 }
 
@@ -87,7 +85,7 @@ export class Location extends Point{
     static from(value){
         if(value instanceof Location) return value;
         const v = value ?? {};
-        return new Location(v.x ?? v.X ?? 0, v.y ?? v.Y ?? 0, v.z ?? v.Z ?? 0);
+        return new Location(v.x ?? 0, v.y ?? 0, v.z ?? 0);
     }
 }
 
@@ -130,28 +128,6 @@ export class CasePoint extends Point{
     static from(value){
         if(value instanceof CasePoint) return value;
         const v = value ?? {};
-        return new CasePoint(v.x ?? v.X ?? 0, v.y ?? v.Y ?? 0, v.adjustment ?? v.Adjustment);
-    }
-}
-
-/**
- * Les huit orientations du voisinage d'une case, dans l'ordre qu'attendent les
- * planches de sprites : 0 nord, 1 est, 2 sud, 3 ouest, puis les diagonales
- * 4 nord-ouest, 5 nord-est, 6 sud-est, 7 sud-ouest.
- *
- * 6 sert aussi de « aucune orientation » : c'est la valeur d'un objet posé qui
- * ne se tourne vers rien.
- */
-export class Direction{
-
-    static NONE = 6;
-
-    /** Vers où se tourner pour aller d'une case à une autre. */
-    static between(x, y, xDest, yDest){
-        if(x == xDest && y == yDest) return Direction.NONE;
-        if(x == xDest) return y > yDest ? 0 : 2;
-        if(y == yDest) return x < xDest ? 1 : 3;
-        if(x > xDest) return y > yDest ? 4 : 7;
-        return y > yDest ? 5 : 6;
+        return new CasePoint(v.x ?? 0, v.y ?? 0, v.adjustment);
     }
 }

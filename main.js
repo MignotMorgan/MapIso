@@ -1,12 +1,12 @@
 import { FactoryForm } from 'Control/form.js';
-import { FactoryControlInfoIso } from "./Controls/controlinfoIso.js";
-import { CoreIso } from "./coreIso.js";
-import { FactoryMapView } from './Controls/factoryIso.js';
-import { DemoWorld } from './demoIso.js';
+import { FactoryControlInfoMapView } from "./Controls/controlInfoMapView.js";
+import { CoreMapView } from "./Controls/Base/coreMapView.js";
+import { FactoryMapView } from './Controls/Base/factoryMapView.js';
+import { DemoWorld } from './demoWorld.js';
 
 function start(){
-    const factoryform = new FactoryForm();
-    const form = factoryform.create(100, 100, 1600, 800);
+    const factoryForm = new FactoryForm();
+    const form = factoryForm.create(100, 100, 1600, 800);
     form.id = "formMap";
     form.canMove = true;
     form.canResize = true;
@@ -23,7 +23,7 @@ function start(){
     // Le monde et son habillage. La vue ne sait rien d'autre que « voici une carte ».
     const demo = new DemoWorld();
     demo.textures();
-    mapView.map = demo.map();
+    mapView.worldMap = demo.createWorldMap();
     mapView.floorsDefault = ["vide"];
     mapView.maxZ = demo.depth - 1;
     mapView.moveTo(0, 0, 0);
@@ -36,12 +36,12 @@ function start(){
     mapView.Draw.showGrid = false;
     mapView.Draw.showNumbers = false;
 
-    let controlInfoIso = (new FactoryControlInfoIso).create(10, 10, 425, 275);
-    controlInfoIso.id = "infoIso";
-    controlInfoIso.canMove = true;
-    controlInfoIso.canResize = true;
-    controlInfoIso.mapView = mapView;
-    form.add(controlInfoIso);
+    let controlInfoMapView = (new FactoryControlInfoMapView).create(10, 10, 425, 275);
+    controlInfoMapView.id = "infoMapView";
+    controlInfoMapView.canMove = true;
+    controlInfoMapView.canResize = true;
+    controlInfoMapView.mapView = mapView;
+    form.add(controlInfoMapView);
 }
 
 if(document.readyState === 'loading')
