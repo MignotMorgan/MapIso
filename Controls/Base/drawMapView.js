@@ -56,19 +56,18 @@ export class DrawMapView extends Draw {
 
         const paint = this.Paint;
         const size = control.sizeCase;
-        const grab = control.grab;
         const cases = control.cases;
         const maxZ = control.maxZ;
 
         for(let z = 0; z <= maxZ; z++){
             for(let c = 0; c < cases.length; c++)
-                this.drawCaseZ(paint, cases[c], z, size, grab);
+                this.drawCaseZ(paint, cases[c], z, size);
         }
     }
 
-    drawCaseZ(paint, C2D, z, size, grab){
-        const x = C2D.screen.x + grab.x;
-        const y = C2D.screen.y + grab.y;
+    drawCaseZ(paint, C2D, z, size){
+        const x = C2D.screen.x;
+        const y = C2D.screen.y;
         const cubes = C2D.cubes;
 
         if(cubes.length == 0){
@@ -85,14 +84,14 @@ export class DrawMapView extends Draw {
                     this.drawLayer(paint, cube.volumes, cube.volumesSpeed, x, y, size, true);
             }
         }
-        this.drawEntities(paint, C2D, z, grab);
+        this.drawEntities(paint, C2D, z);
     }
 
-    drawEntities(paint, C2D, z, grab){
+    drawEntities(paint, C2D, z){
         const draws = C2D.entityDraws;
         for(let d = 0; d < draws.length; d++)
             if(draws[d].z == z)
-                this.drawEntity(paint, draws[d], grab);
+                this.drawEntity(paint, draws[d]);
     }
 
     /** Sol de repère là où la carte est vide : indispensable pour éditer dans le vide. */
@@ -112,7 +111,9 @@ export class DrawMapView extends Draw {
         const rectHeight = volume ? size * 2 : size;
 
         if(speed > 0){
-            const i = Math.floor(names.length * ((Date.now() % speed) / speed));
+            const world = this.control.worldMap;
+            const t = world == null ? 0 : world.time;
+            const i = Math.floor(names.length * ((t % speed) / speed));
             this.drawTexture(paint, names[i], x - size, rectY, size * 2, rectHeight);
             return;
         }
@@ -127,9 +128,9 @@ export class DrawMapView extends Draw {
     }
 
     /** Le rectangle du sprite est déjà calculé par EntityDraw : on le remplit. */
-    drawEntity(paint, entityDraw, grab){
+    drawEntity(paint, entityDraw){
         this.drawTexture(paint, entityDraw.body,
-            entityDraw.screen.x + grab.x, entityDraw.screen.y + grab.y,
+            entityDraw.screen.x, entityDraw.screen.y,
             entityDraw.width, entityDraw.height);
     }
     drawGrid(){
@@ -194,12 +195,11 @@ export class DrawMapView extends Draw {
         const control = this.control;
         const paint = this.Paint;
         const size = control.sizeCase;
-        const grab = control.grab;
 
         const C2D = control.findCase(cx, cy);
         const screen = C2D != null ? C2D.screen : control.screenFromCase(cx, cy);
-        const x = screen.x + grab.x;
-        const y = screen.y + grab.y;
+        const x = screen.x;
+        const y = screen.y;
 
         paint.withAlpha(0.35, () => paint.fillLosange(x, y, size, "#ff0000"));
         paint.strokeLosange(x, y, size, "#ff0000", 2);

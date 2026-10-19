@@ -101,8 +101,8 @@ export class WorldMap{
     #entities = [];
     //noCeilingZones : toutes les pièces déclarées sur la carte, pas seulement celles visibles
     #noCeilingZones = [];
-    //clock : seule horloge du monde (ms depuis l'image précédente)
-    #clock = {last:0, elapsed:0};
+    //clock : seule horloge du monde (elapsed = dernière image, time = depuis le départ)
+    #clock = {last:0, elapsed:0, time:0};
 
     /**
      * width/height = taille du sol, depth = nombre d'étages.
@@ -140,6 +140,8 @@ export class WorldMap{
     get noCeilingZones(){ return this.#noCeilingZones; }
     /** Millisecondes du dernier tick. La vue les lit, elle ne les calcule pas. */
     get elapsed(){ return this.#clock.elapsed; }
+    /** Millisecondes depuis le premier tick. Animations de textures, pas Date.now(). */
+    get time(){ return this.#clock.time; }
 
     // === GRILLE ===
 
@@ -278,8 +280,9 @@ export class WorldMap{
     #measureElapsed(){
         const now = Date.now();
         const clock = this.#clock;
-        if(clock.last == 0){ clock.last = now; clock.elapsed = 0; return 0; }
+        if(clock.last == 0){ clock.last = now; clock.elapsed = 0; clock.time = 0; return 0; }
         clock.elapsed = now - clock.last;
+        clock.time += clock.elapsed;
         clock.last = now;
         return clock.elapsed;
     }

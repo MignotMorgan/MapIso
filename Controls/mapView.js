@@ -6,10 +6,10 @@ import { Projector } from '../projector.js';
 import { Selection } from '../selection.js';
 
 export class MapView extends Control{
-    //grab : Gestion du déplacement de la vue (saisir / déplacer)
-     #grab = {x:0, y:0, adjustment: new Point(), border:25, step:25, modified:false, rolled:0};
     //wallCeil : Mode d'affichage des murs et plafonds
     #wallCeil = 0;
+    //follow : la caméra colle à l'entité sélectionnée (le pan milieu l'éteint)
+    #follow = true;
 
     // Carte voxel (cubes + joueurs + PNJ). Remplace l'ancien PageInfo.Map.
     #worldMap = null;
@@ -81,15 +81,6 @@ export class MapView extends Control{
         if(this.#modified)
             this.modify();
 
-        if(this.viewChanged()) this.#createCubes = true;
-        if(this.#createCubes){
-            this.createCubes();
-            this.#createCubes = false;
-        }
-        if(this.#rebuildEntityDraws){
-            this.createEntityDraws();
-            this.#rebuildEntityDraws = false;
-        }
         if(this.#worldMap != null){
             const moved = this.#worldMap.tick();
             const selectedId = this.selected.id;
@@ -99,6 +90,19 @@ export class MapView extends Control{
                         this.noCeilingFromSelected();
                         break;
                     }
+        }
+        // La caméra d'abord : sinon createCubes se fait sur l'ancienne
+        // location, et l'image suivante recolle — un glitch d'une frame.
+        if(this.#follow) this.followSelected();
+
+        if(this.viewChanged()) this.#createCubes = true;
+        if(this.#createCubes){
+            this.createCubes();
+            this.#createCubes = false;
+        }
+        if(this.#rebuildEntityDraws){
+            this.createEntityDraws();
+            this.#rebuildEntityDraws = false;
         }
         this.placeCases();
         this.placeEntityDraws();
@@ -120,6 +124,62 @@ export class MapView extends Control{
     moveTo(x, y, z = this.#location.z){
         this.#location.set(x, y, z);
         this.#createCubes = true;
+    }
+    /**
+     * Glisse la carte de (dx, dy) pixels. L'offset passe par revise
+     * (le projecteur), puis se convertit en cases dès qu'il dépasse une maille.
+     */
+    pan(dx, dy){
+        const adjustment = this.#revise.adjustment;
+        adjustment.x += dx ?? 0;
+        adjustment.y += dy ?? 0;
+        this.#foldPan();
+    }
+    /** Place un point du monde au centre de la vue. */
+    lookAt(x, y, z = this.#location.z){
+        this.#centerOn(this.screenFromLocation(x, y, z));
+    }
+    /** Caméra sur l'entité choisie : le sprite interpolé, pas la case logique. */
+    followSelected(){
+        const entity = this.selectedEntity();
+        if(entity == null) return;
+        const stride = entity.stride();
+        const screen = stride == null
+            ? this.screenFromLocation(entity.x, entity.y, entity.z)
+            : stride.between(
+                this.screenFromLocation(stride.from.x, stride.from.y, stride.from.z),
+                this.screenFromLocation(stride.to.x, stride.to.y, stride.to.z));
+        this.#centerOn(screen);
+    }
+    /**
+     * Recale pour que ce point écran tombe au centre du contrôle.
+     * Le centre est le rectangle du MapView, pas redress() : sinon l'offset
+     * de pan est déjà dans la cible, l'erreur revient chaque image et la
+     * caméra tremble.
+     */
+    #centerOn(screen){
+        const rect = this.Rectangle.rectangleBackground();
+        const dx = rect.x + rect.width / 2 - screen.x;
+        const dy = rect.y + rect.height / 2 - screen.y;
+        if(dx * dx + dy * dy < 1) return;
+        this.pan(dx, dy);
+    }
+    /**
+     * Un décalage écran trop grand devient un déplacement de location :
+     * les cubes hors vue se chargent, le reste (revise) reste un sous-case.
+     */
+    #foldPan(){
+        const s = this.#sizeCase;
+        if(!(s > 0)) return;
+        const adjustment = this.#revise.adjustment;
+        const ax = adjustment.x;
+        const ay = adjustment.y;
+        const ilx = Math.trunc((-ax - 2 * ay) / (2 * s));
+        const ily = Math.trunc((ax - 2 * ay) / (2 * s));
+        if(ilx === 0 && ily === 0) return;
+        this.moveTo(this.#location.x + ilx, this.#location.y + ily);
+        adjustment.x -= s * (ily - ilx);
+        adjustment.y += (s / 2) * (ilx + ily);
     }
     get casePoint(){ return this.#casePoint; }
     // On recopie dans le point existant : la vue garde le sien, personne ne
@@ -150,7 +210,8 @@ export class MapView extends Control{
     set adjusted(value){ this.#adjusted = !!value; this.#rebuildEntityDraws = true; }
 
 
-    get grab(){ return this.#grab; }
+    get follow(){ return this.#follow; }
+    set follow(value){ this.#follow = !!value; }
     get wallCeil(){ return this.#wallCeil; }
     set wallCeil(value){ this.#wallCeil = value ?? 0; }
     get selected(){ return this.#selection.selected; }
@@ -345,7 +406,11 @@ export class MapView extends Control{
         }
     }
 
-    select(id){ return this.#selection.select(id); }
+    select(id){
+        const entity = this.#selection.select(id);
+        if(entity != null) this.#follow = true;
+        return entity;
+    }
     moveSelectedTo(cube){ return this.#selection.moveSelectedTo(cube); }
     onSelectedMouse(){ this.#selection.onSelectedMouse(); }
     onTarget(){ this.#selection.onTarget(); }
