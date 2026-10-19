@@ -1,5 +1,4 @@
 import { Draw } from 'Control/draw.js';
-import { PaintMapView } from './paintMapView.js';
 import { Textures } from '../../texture.js';
 
 /**
@@ -7,10 +6,10 @@ import { Textures } from '../../texture.js';
  *
  * Il ne decide de rien : il lit l'etat prepare par MapView (les cases, leurs
  * cubes, les sprites) et le pose a l'ecran, du fond vers l'avant.
+ * Le Paint vient du FormView : un PaintFormView, déjà capable de losanges.
  */
 export class DrawMapView extends Draw {
 
-    #paintMapView = null;
     //showGrid / showNumbers : repères de mise au point, à activer depuis l'éditeur.
     #showGrid = false;
     #showNumbers = false;
@@ -28,38 +27,20 @@ export class DrawMapView extends Draw {
     get showHover(){ return this.#showHover; }
     set showHover(value){ this.#showHover = !!value; }
 
-    /**
-     * Le Paint de la vue, enrichi des losanges.
-     *
-     * On enveloppe celui du formulaire : le canvas lui appartient. Tout le
-     * dessin de la carte passe donc par un seul objet, y compris le fond
-     * et la bordure hérités de Draw.
-     *
-     * Le formulaire peut changer de Paint (le contrôle peut changer de
-     * fenêtre) : on resynchronise à chaque accès plutôt que de garder une
-     * référence qui se périmerait.
-     */
-    get Paint(){
-        const paint = super.Paint;
-        if(paint == null) return null;
-        if(paint instanceof PaintMapView) return paint;
-
-        if(this.#paintMapView == null) this.#paintMapView = new PaintMapView(paint);
-        else this.#paintMapView.paint = paint;
-        return this.#paintMapView;
-    }
-    set Paint(value){ super.Paint = value; }
-
     draw(){
         super.draw();
-        this.drawMap();
-        if(this.#showGrid) this.drawGrid();
-        if(this.#showNumbers) this.drawCaseNumbers();
-        if(this.#showHover) this.drawLosange(this.control.casePoint.x, this.control.casePoint.y);
+        const paint = this.Paint;
+        const rect = this.control.Rectangle.rectangleBackground();
+        paint.clipRectangle(rect.x, rect.y, rect.width, rect.height, () => {
+            this.drawMap();
+            if(this.#showGrid) this.drawGrid();
+            if(this.#showNumbers) this.drawCaseNumbers();
+            if(this.#showHover) this.drawLosange(this.control.casePoint.x, this.control.casePoint.y);
+        });
     }
 
     /** Aucun remplissage : on voit le formulaire à travers le rectangle du contrôle. */
-    drawBackground(){}
+    //drawBackground(){}
 
     /**
      * Le monde, du fond vers l'avant.

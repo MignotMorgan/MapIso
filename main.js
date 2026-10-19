@@ -1,13 +1,13 @@
-import { FactoryForm } from 'Control/form.js';
+import { FactoryFormView } from './Controls/Base/factoryFormView.js';
 import { FactoryControlInfoMapView } from "./Controls/controlInfoMapView.js";
 import { CoreMapView } from "./Controls/Base/coreMapView.js";
 import { FactoryMapView } from './Controls/Base/factoryMapView.js';
 import { DemoWorld } from './demoWorld.js';
 
 function start(){
-    const factoryForm = new FactoryForm();
+    const factoryForm = new FactoryFormView();
     const form = factoryForm.create(100, 100, 1600, 800);
-    form.id = "formMap";
+    form.id = "formView";
     form.canMove = true;
     form.canResize = true;
     form.customTheme.background.color = "#5e5f5f";
@@ -33,8 +33,8 @@ function start(){
     mapView.select("heros");
 
     // Repères de mise au point, à réactiver au besoin.
-    mapView.Draw.showGrid = false;
-    mapView.Draw.showNumbers = false;
+    mapView.Draw.showGrid = true;
+    mapView.Draw.showNumbers = true;
 
     let controlInfoMapView = (new FactoryControlInfoMapView).create(10, 10, 425, 275);
     controlInfoMapView.id = "infoMapView";
