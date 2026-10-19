@@ -11,7 +11,7 @@ export class FactoryWorld{
     createCube(x, y, z, options){ return new Cube(x, y, z, options); }
     /** options : id, width, canMove, body… */
     createEntity(x, y, z, options){ return new Entity(x, y, z, options); }
-    /** Carte vide aux dimensions données. options : name, cubes, permanents, entities, noCeilingZones. */
+    /** Carte vide aux dimensions données. options : name, cubes, players, entities, noCeilingZones. */
     createWorldMap(width, height, depth, options){ return new WorldMap(width, height, depth, options); }
     /** Carte reconstruite depuis du JSON (sauvegarde éditeur ou message serveur). */
     loadWorldMap(json){ return WorldMap.from(json); }

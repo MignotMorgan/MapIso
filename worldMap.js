@@ -94,16 +94,16 @@ export class WorldMap{
     #depth = 0;
     //cubes : grille dense cubes[x][y][z], une cellule vide vaut null
     #cubes = [];
-    //permanents : entités fixes du décor (bâtiments, arbres) chargées avec la carte
-    #permanents = [];
-    //entities : entités mobiles (personnages, objets déplaçables)
+    //players : les joueurs
+    #players = [];
+    //entities : PNJ et objets mobiles
     #entities = [];
     //noCeilingZones : toutes les pièces déclarées sur la carte, pas seulement celles visibles
     #noCeilingZones = [];
 
     /**
      * width/height = taille du sol, depth = nombre d'étages.
-     * options : name, cubes, permanents, entities, noCeilingZones.
+     * options : name, cubes, players, entities, noCeilingZones.
      */
     constructor(width, height, depth, options = {}){
         this.#width = WorldMap.#toSize(width);
@@ -116,8 +116,8 @@ export class WorldMap{
         const cubes = options.cubes ?? null;
         if(cubes != null) this.loadCubes(cubes);
 
-        const permanents = options.permanents ?? [];
-        for(let p = 0; p < permanents.length; p++) this.addPermanent(permanents[p]);
+        const players = options.players ?? [];
+        for(let p = 0; p < players.length; p++) this.addPlayer(players[p]);
 
         const entities = options.entities ?? [];
         for(let e = 0; e < entities.length; e++) this.addEntity(entities[e]);
@@ -132,7 +132,7 @@ export class WorldMap{
     get height(){ return this.#height; }
     get depth(){ return this.#depth; }
     get cubes(){ return this.#cubes; }
-    get permanents(){ return this.#permanents; }
+    get players(){ return this.#players; }
     get entities(){ return this.#entities; }
     get noCeilingZones(){ return this.#noCeilingZones; }
 
@@ -248,31 +248,31 @@ export class WorldMap{
 
     // === ENTITÉS ===
 
-    /** Ajoute une entité mobile déjà construite. */
+    /** Ajoute un PNJ ou un objet mobile déjà construit. */
     addEntity(entity){
         return this.#attach(entity, this.#entities);
     }
 
-    /** Ajoute un élément de décor fixe déjà construit. */
-    addPermanent(entity){
-        return this.#attach(entity, this.#permanents);
+    /** Ajoute un joueur déjà construit. */
+    addPlayer(entity){
+        return this.#attach(entity, this.#players);
     }
 
-    /** Crée une entité mobile et la place sur la carte. options : id, width, body, canMove… */
+    /** Crée un PNJ ou un objet mobile. options : id, width, body, canMove… */
     spawn(x, y, z, options = {}){
         return this.addEntity(CoreMapView.FactoryWorld.createEntity(x, y, z, options));
     }
 
-    /** Idem pour un décor fixe (bâtiment, arbre). */
-    spawnPermanent(x, y, z, options = {}){
-        return this.addPermanent(CoreMapView.FactoryWorld.createEntity(x, y, z, options));
+    /** Crée un joueur. */
+    spawnPlayer(x, y, z, options = {}){
+        return this.addPlayer(CoreMapView.FactoryWorld.createEntity(x, y, z, options));
     }
 
-    /** Cherche par identifiant : décors d'abord, puis mobiles. */
+    /** Cherche par identifiant : joueurs d'abord, puis PNJ / objets. */
     findEntity(id){
-        for(let p = 0; p < this.#permanents.length; p++)
-            if(this.#permanents[p] != null && this.#permanents[p].id == id)
-                return this.#permanents[p];
+        for(let p = 0; p < this.#players.length; p++)
+            if(this.#players[p] != null && this.#players[p].id == id)
+                return this.#players[p];
 
         for(let e = 0; e < this.#entities.length; e++)
             if(this.#entities[e] != null && this.#entities[e].id == id)
@@ -281,17 +281,17 @@ export class WorldMap{
         return null;
     }
 
-    /** Retire une entité (mobile ou décor). Retourne l'entité retirée, ou null. */
+    /** Retire un joueur, un PNJ ou un objet. Retourne l'entité retirée, ou null. */
     removeEntity(id){
-        const removed = WorldMap.#pull(this.#entities, id);
+        const removed = WorldMap.#pull(this.#players, id);
         if(removed != null) return removed;
-        return WorldMap.#pull(this.#permanents, id);
+        return WorldMap.#pull(this.#entities, id);
     }
 
-    /** Toutes les entités dont le volume contient ce point : décor et mobiles confondus. */
+    /** Toutes les entités dont le volume contient ce point : joueurs et PNJ / objets. */
     entitiesAt(x, y, z){
         const found = [];
-        const all = this.#permanents.concat(this.#entities);
+        const all = this.#players.concat(this.#entities);
         for(let i = 0; i < all.length; i++)
             if(all[i] != null && all[i].contains(x, y, z))
                 found[found.length] = all[i];
@@ -337,7 +337,7 @@ export class WorldMap{
             height: this.#height,
             depth: this.#depth,
             cubes: cubes,
-            permanents: this.#permanents,
+            players: this.#players,
             entities: this.#entities,
             noCeilingZones: this.#noCeilingZones
         };

@@ -102,13 +102,13 @@ export class DemoWorld{
     trees(worldMap){
         const spots = [[0,0],[2,4],[4,6],[6,8],[11,4],[14,6]];
         for(let i = 0; i < spots.length; i++)
-            worldMap.spawnPermanent(spots[i][0], spots[i][1], 0, {
+            worldMap.spawn(spots[i][0], spots[i][1], 0, {
                 id: "arbre" + i, body:"arbre", width:1, height:3, canTarget:true
             });
     }
 
     people(worldMap){
-        worldMap.spawn(10, 5, 0, { id:"heros",      body:"heros",      width:1, height:2, canMove:true, canTarget:true });
+        worldMap.spawnPlayer(10, 5, 0, { id:"heros",      body:"heros",      width:1, height:2, canMove:true, canTarget:true });
         worldMap.spawn(14, 2, 0, { id:"villageois", body:"villageois", width:1, height:2, canMove:true, canTarget:true });
         worldMap.spawn(8,  7, 1, { id:"guetteur",   body:"villageois", width:1, height:2, canMove:true, canTarget:true });
     }

@@ -56,7 +56,7 @@ export class Selection{
         const c = mapView.findCase(mapView.casePoint.x, mapView.casePoint.y);
         this.#target.case = c;
         this.#target.cube = c != null ? c.floor() : null;
-        this.#target.id = this.#hitSprite(mapView.permanentDraws.concat(mapView.entityDraws));
+        this.#target.id = this.#hitSprite(mapView.playerDraws.concat(mapView.entityDraws));
     }
 
     /**
@@ -98,7 +98,7 @@ export class Selection{
         if(mapView.worldMap == null) return;
 
         this.#selectedMouse.target = "";
-        let target = this.#hitVolume(mapView.worldMap.permanents, x, y, z);
+        let target = this.#hitVolume(mapView.worldMap.players, x, y, z);
         if(target == null) target = this.#hitVolume(mapView.mobiles(), x, y, z);
 
         this.#selectedMouse.target = target != null ? target.id : this.#hitSprite(mapView.entityDraws);

@@ -11,14 +11,14 @@ export class MapView extends Control{
     //wallCeil : Mode d'affichage des murs et plafonds
     #wallCeil = 0;
 
-    // Carte voxel (cubes + permanents). Remplace l'ancien PageInfo.Map.
+    // Carte voxel (cubes + joueurs + PNJ). Remplace l'ancien PageInfo.Map.
     #worldMap = null;
-    //entities : Tableau des entités dynamiques (personnages, objets mobiles)
+    //entities : PNJ / objets propres à cette vue (en plus de worldMap.entities)
     #entities = new Array();
     //entityDraws : Tableau optimisé des entités pour l'affichage
     #entityDraws = new Array();
-    //permanentDraws : Tableau des entités permanentes pour l'affichage
-    #permanentDraws = [];
+    //playerDraws : vues écran des joueurs
+    #playerDraws = [];
     //noCeilingZones : Tableau des zones sans plafond pour la visibilité
     #noCeilingZones = new Array();
     //resizeCases : Flag indiquant qu'il faut recalculer toutes les cases
@@ -168,7 +168,7 @@ export class MapView extends Control{
     }
     get entities(){ return this.#entities; }
     get entityDraws(){ return this.#entityDraws; }
-    get permanentDraws(){ return this.#permanentDraws; }
+    get playerDraws(){ return this.#playerDraws; }
     get noCeilingZones(){ return this.#noCeilingZones; }
     //get resizeCases(){ return this.#resizeCases; }
     get createCase(){ return this.#createCase; }
@@ -250,7 +250,7 @@ export class MapView extends Control{
         }
     }
 
-    /** Entités mobiles : celles de la carte, plus celles propres à cette vue. */
+    /** PNJ et objets mobiles : ceux de la carte, plus ceux propres à cette vue. */
     mobiles(){
         const mobiles = this.worldMap == null ? [] : this.worldMap.entities;
         if(this.#entities.length == 0) return mobiles;
@@ -264,13 +264,13 @@ export class MapView extends Control{
      */
     createEntityDraws(){
         const sizeCase = this.sizeCase;
-        const permanents = this.worldMap == null ? [] : this.worldMap.permanents;
+        const players = this.worldMap == null ? [] : this.worldMap.players;
         const mobiles = this.mobiles();
 
-        this.#permanentDraws = [];
-        for(let p = 0; p < permanents.length; p++)
-            if(permanents[p] != null)
-                this.#permanentDraws[this.#permanentDraws.length] = new EntityDraw(permanents[p], sizeCase, this.#adjusted);
+        this.#playerDraws = [];
+        for(let p = 0; p < players.length; p++)
+            if(players[p] != null)
+                this.#playerDraws[this.#playerDraws.length] = new EntityDraw(players[p], sizeCase, this.#adjusted);
 
         this.#entityDraws = [];
         for(let e = 0; e < mobiles.length; e++)
@@ -287,7 +287,7 @@ export class MapView extends Control{
         for(let c = 0; c < this.#cases.length; c++)
             this.#cases[c].entityDraws = [];
 
-        this.placeDraws(this.#permanentDraws, elapsed);
+        this.placeDraws(this.#playerDraws, elapsed);
         this.placeDraws(this.#entityDraws, elapsed);
     }
     placeDraws(draws, elapsed){
