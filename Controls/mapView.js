@@ -220,6 +220,12 @@ export class MapView extends Control{
                 }
             }
         }
+        // Fond → avant (x+y), puis gauche → droite (x-y) sur une même diagonale.
+        this.cases.sort((a, b) => {
+            const depth = (a.x + a.y) - (b.x + b.y);
+            if(depth !== 0) return depth;
+            return (a.x - a.y) - (b.x - b.y);
+        });
         this.#placed.x = NaN;
         this.#placed.y = NaN;
     }
@@ -321,15 +327,21 @@ export class MapView extends Control{
             const stride = entity.stride();
             if(stride == null){
                 draw.toScreen(this.screenFromLocation(entity.x, entity.y, entity.z));
+                draw.z = entity.z;
+                const C2D = this.findCaseLocation(entity.x, entity.y, entity.z);
+                if(C2D != null) C2D.entityDraws[C2D.entityDraws.length] = draw;
             } else {
-                // Entre deux cases : le pas place lui-même le sprite entre les deux.
+                // Pieds interpolés en x,y ; l'étage du peintre est celui qu'elle occupe
+                // (l'arrivée). Sinon une montée la range au sol et le gazon de
+                // devant la recouvre.
                 draw.toScreen(stride.between(
                     this.screenFromLocation(stride.from.x, stride.from.y, stride.from.z),
                     this.screenFromLocation(stride.to.x, stride.to.y, stride.to.z)));
+                const at = stride.at();
+                draw.z = entity.z;
+                const C2D = this.findCaseLocation(at.x, at.y, entity.z);
+                if(C2D != null) C2D.entityDraws[C2D.entityDraws.length] = draw;
             }
-
-            const C2D = this.findCaseLocation(entity.x, entity.y, entity.z);
-            if(C2D != null) C2D.entityDraws[C2D.entityDraws.length] = draw;
         }
     }
 

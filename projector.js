@@ -89,8 +89,8 @@ export class Projector{
     caseFromLocation(x, y, z){
         const location = this.#mapView.location;
         return new CasePoint(
-            x - location.x - (z - location.z),
-            y - location.y - (z - location.z)
+            Math.round(x - location.x - (z - location.z)),
+            Math.round(y - location.y - (z - location.z))
         );
     }
 

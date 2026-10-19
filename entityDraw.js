@@ -20,6 +20,8 @@ export class EntityDraw{
     #sizeCase = 0;
     #adjusted = false;
     #screen = new Point();
+    // z du peintre cette image : pieds interpolés, pas forcément entity.z.
+    #z = 0;
 
     constructor(entity, sizeCase, adjusted = false){
         this.#entity = entity;
@@ -28,6 +30,7 @@ export class EntityDraw{
         this.#height = sizeCase * entity.height + sizeCase * entity.width;
         this.#sizeCase = sizeCase;
         this.#adjusted = !!adjusted;
+        this.#z = entity.z;
         this.toScreen(new Point());
     }
 
@@ -45,7 +48,8 @@ export class EntityDraw{
     get location(){ return this.#entity.location; }
     get x(){ return this.#entity.x; }
     get y(){ return this.#entity.y; }
-    get z(){ return this.#entity.z; }
+    get z(){ return this.#z; }
+    set z(value){ this.#z = value ?? 0; }
     get body(){ return this.#entity.body; }
     get canMove(){ return this.#entity.canMove; }
     get adjustment(){ return this.#entity.adjustment; }

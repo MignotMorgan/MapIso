@@ -66,6 +66,20 @@ export class Stride{
         return new Point(from.x + (to.x - from.x) * this.#ratio,
                          from.y + (to.y - from.y) * this.#ratio);
     }
+    /**
+     * Pied dans le monde au prorata du pas.
+     * La case logique est déjà l'arrivée ; le peintre accroche le sprite ici.
+     */
+    at(){
+        const from = this.#from;
+        const to = this.#to;
+        const r = this.#ratio;
+        return new Location(
+            from.x + (to.x - from.x) * r,
+            from.y + (to.y - from.y) * r,
+            from.z + (to.z - from.z) * r
+        );
+    }
 }
 
 /**

@@ -45,9 +45,10 @@ export class DrawMapView extends Draw {
     /**
      * Le monde, du fond vers l'avant.
      *
-     * On monte étage par étage, et dans chaque étage on pose d'abord tous les
-     * sols puis tous les volumes. C'est cet ordre qui fait qu'un mur cache bien
-     * ce qui est derrière lui : le peintre couvre au fur et à mesure.
+     * On termine un étage partout avant de passer au suivant : un personnage
+     * sur une plateforme (z+1) se peint après le sol de devant (z), donc
+     * dessus. Dans un étage, les cases sont déjà triées x+y puis x-y :
+     * un mur devant cache ce qui est derrière au même z.
      */
     drawMap(){
         const control = this.control;
@@ -56,49 +57,42 @@ export class DrawMapView extends Draw {
         const paint = this.Paint;
         const size = control.sizeCase;
         const grab = control.grab;
+        const cases = control.cases;
+        const maxZ = control.maxZ;
 
-        for(let z = 0; z <= control.maxZ; z++){
-            this.drawFloors(paint, z, size, grab);
-            this.drawVolumes(paint, z, size, grab);
+        for(let z = 0; z <= maxZ; z++){
+            for(let c = 0; c < cases.length; c++)
+                this.drawCaseZ(paint, cases[c], z, size, grab);
         }
     }
 
-    drawFloors(paint, z, size, grab){
-        const cases = this.control.cases;
-        for(let c = 0; c < cases.length; c++){
-            const C2D = cases[c];
-            const x = C2D.screen.x + grab.x;
-            const y = C2D.screen.y + grab.y;
+    drawCaseZ(paint, C2D, z, size, grab){
+        const x = C2D.screen.x + grab.x;
+        const y = C2D.screen.y + grab.y;
+        const cubes = C2D.cubes;
 
-            if(C2D.cubes.length == 0){
-                if(z == 0) this.drawDefault(paint, x, y, size);
-                continue;
-            }
-            for(let i = 0; i < C2D.cubes.length; i++){
-                const cube = C2D.cubes[i];
+        if(cubes.length == 0){
+            if(z == 0) this.drawDefault(paint, x, y, size);
+        } else {
+            for(let i = 0; i < cubes.length; i++){
+                const cube = cubes[i];
                 if(cube != null && cube.z == z)
                     this.drawLayer(paint, cube.floors, cube.floorsSpeed, x, y, size, false);
             }
-        }
-    }
-
-    drawVolumes(paint, z, size, grab){
-        const cases = this.control.cases;
-        for(let c = 0; c < cases.length; c++){
-            const C2D = cases[c];
-            const x = C2D.screen.x + grab.x;
-            const y = C2D.screen.y + grab.y;
-
-            for(let i = 0; i < C2D.cubes.length; i++){
-                const cube = C2D.cubes[i];
+            for(let i = 0; i < cubes.length; i++){
+                const cube = cubes[i];
                 if(cube != null && cube.z == z)
                     this.drawLayer(paint, cube.volumes, cube.volumesSpeed, x, y, size, true);
             }
-            // Les entités s'intercalent entre les volumes du même étage.
-            for(let d = 0; d < C2D.entityDraws.length; d++)
-                if(C2D.entityDraws[d].z == z)
-                    this.drawEntity(paint, C2D.entityDraws[d], grab);
         }
+        this.drawEntities(paint, C2D, z, grab);
+    }
+
+    drawEntities(paint, C2D, z, grab){
+        const draws = C2D.entityDraws;
+        for(let d = 0; d < draws.length; d++)
+            if(draws[d].z == z)
+                this.drawEntity(paint, draws[d], grab);
     }
 
     /** Sol de repère là où la carte est vide : indispensable pour éditer dans le vide. */
