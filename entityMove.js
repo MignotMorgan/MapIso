@@ -77,10 +77,8 @@ export class Stride{
  * index  : le pas en cours, 0 étant le premier.
  * step   : millisecondes déjà écoulées dans ce pas-là.
  *
- * Le carnet avance tout seul quand on lui donne le temps écoulé ; l'entité se
- * contente de lire où il en est et d'y poser sa position. Séparer les deux
- * permet de faire suivre le même trajet par autre chose qu'un personnage —
- * une caméra, un projectile — sans rien réécrire.
+ * progress(elapsed, entity) consomme le temps et pose la case, la direction
+ * et la fin de trajet sur l'entité. Entity.tick lui délègue tout le déplacement.
  */
 export class EntityMove{
 
@@ -157,14 +155,15 @@ export class EntityMove{
     }
 
     /**
-     * Consomme elapsed millisecondes de trajet.
-     * Renvoie true quand l'arrivée est atteinte, pour que l'entité sache
-     * qu'elle doit se poser et ranger le carnet.
+     * Fait progresser le trajet de elapsed millisecondes.
+     * Pose la case logique et la direction sur l'entité (l'entité occupe déjà
+     * la case visée ; le sprite rattrape via stride()).
+     * Renvoie true si la case logique vient de changer, ou si le trajet finit.
      */
-    advance(elapsed){
-        if(!this.walking) return true;
+    progress(elapsed, entity){
+        if(!this.walking) return false;
 
-        this.#step += elapsed;
+        this.#step += elapsed ?? 0;
 
         // Une image lente peut franchir plusieurs cases d'un coup.
         let duration = this.duration(this.#index);
@@ -173,7 +172,25 @@ export class EntityMove{
             this.#index++;
             duration = this.duration(this.#index);
         }
-        return this.#index >= this.#street.length - 1;
+
+        if(this.#index >= this.#street.length - 1){
+            if(entity != null && this.destination != null)
+                entity.location.copy(this.destination);
+            this.clear();
+            return true;
+        }
+
+        const stride = this.stride();
+        if(stride == null){
+            if(entity != null && this.destination != null)
+                entity.location.copy(this.destination);
+            this.clear();
+            return true;
+        }
+        if(entity == null || entity.location.equals(stride.to)) return false;
+        entity.direction = stride.direction;
+        entity.location.copy(stride.to);
+        return true;
     }
 
     toJSON(){

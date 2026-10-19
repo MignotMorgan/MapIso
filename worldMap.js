@@ -1,6 +1,7 @@
 import { CoreMapView } from './Controls/Base/coreMapView.js';
 import { Cube } from './cube.js';
 import { Entity } from './entity.js';
+import { Pathfinding } from './pathfinding.js';
 
 /**
  * Zone rectangulaire du monde (typiquement une pièce) dont le plafond
@@ -100,6 +101,8 @@ export class WorldMap{
     #entities = [];
     //noCeilingZones : toutes les pièces déclarées sur la carte, pas seulement celles visibles
     #noCeilingZones = [];
+    //clock : seule horloge du monde (ms depuis l'image précédente)
+    #clock = {last:0, elapsed:0};
 
     /**
      * width/height = taille du sol, depth = nombre d'étages.
@@ -135,6 +138,8 @@ export class WorldMap{
     get players(){ return this.#players; }
     get entities(){ return this.#entities; }
     get noCeilingZones(){ return this.#noCeilingZones; }
+    /** Millisecondes du dernier tick. La vue les lit, elle ne les calcule pas. */
+    get elapsed(){ return this.#clock.elapsed; }
 
     // === GRILLE ===
 
@@ -244,6 +249,47 @@ export class WorldMap{
             for(let y = 0; y < Math.min(oldHeight, this.#height); y++)
                 for(let z = 0; z < Math.min(oldDepth, this.#depth); z++)
                     this.#cubes[x][y][z] = previous[x][y][z];
+    }
+
+    // === TEMPS ===
+
+    /**
+     * Un tour du monde : mesure le temps, puis tick joueurs et PNJ / objets.
+     * Renvoie les entités dont la case logique a changé (toits, follow…).
+     */
+    tick(){
+        const elapsed = this.#measureElapsed();
+        const moved = [];
+        this.#tickList(this.#players, elapsed, moved);
+        this.#tickList(this.#entities, elapsed, moved);
+        return moved;
+    }
+
+    /**
+     * Intention « aller ici ». Seule la carte pathfind et lance la marche :
+     * la vue et le futur client n'ont qu'à envoyer l'id et la case.
+     */
+    goTo(id, x, y, z){
+        const entity = this.findEntity(id);
+        if(entity == null || !entity.canMove) return false;
+        return new Pathfinding(entity.x, entity.y, entity.z, this).moveTo(entity, x, y, z);
+    }
+
+    #measureElapsed(){
+        const now = Date.now();
+        const clock = this.#clock;
+        if(clock.last == 0){ clock.last = now; clock.elapsed = 0; return 0; }
+        clock.elapsed = now - clock.last;
+        clock.last = now;
+        return clock.elapsed;
+    }
+
+    #tickList(list, elapsed, moved){
+        for(let i = 0; i < list.length; i++){
+            const entity = list[i];
+            if(entity == null) continue;
+            if(entity.tick(elapsed)) moved[moved.length] = entity;
+        }
     }
 
     // === ENTITÉS ===

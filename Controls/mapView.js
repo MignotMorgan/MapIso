@@ -54,8 +54,8 @@ export class MapView extends Control{
     #adjusted = true;
     // Repères du dernier remplissage, pour ne recalculer les colonnes qu'en cas de changement.
     #drawn = {x:NaN, y:NaN, z:NaN, maxZ:-1, wallCeil:-1};
-    //clock : temps écoulé entre deux images, en millisecondes.
-    #clock = {last:0, elapsed:0};
+    // Dernière origine écran des cases : si le contrôle bouge, les sols doivent suivre.
+    #placed = {x:NaN, y:NaN, sizeCase:0};
     #projector = null;
     #selection = null;
 
@@ -67,6 +67,8 @@ export class MapView extends Control{
 
     initialize(){
         super.initialize();
+        this.customTheme.background.color = "transparent";
+        this.customTheme.background.rectangle.lineWidth = 0;
         this.modify();
     }
     /**
@@ -88,20 +90,18 @@ export class MapView extends Control{
             this.createEntityDraws();
             this.#rebuildEntityDraws = false;
         }
-        this.placeEntityDraws(this.elapsed());
-    }
-    /**
-     * Millisecondes écoulées depuis l'image précédente.
-     * On plafonne : si l'onglet a été mis en arrière-plan, un écart énorme
-     * ferait traverser la carte d'un coup aux personnages.
-     */
-    elapsed(){
-        const now = Date.now();
-        const clock = this.#clock;
-        if(clock.last == 0){ clock.last = now; clock.elapsed = 0; return 0; }
-        clock.elapsed = Math.min(now - clock.last, 200);
-        clock.last = now;
-        return clock.elapsed;
+        if(this.#worldMap != null){
+            const moved = this.#worldMap.tick();
+            const selectedId = this.selected.id;
+            if(selectedId !== "")
+                for(let i = 0; i < moved.length; i++)
+                    if(moved[i].id === selectedId){
+                        this.noCeilingFromSelected();
+                        break;
+                    }
+        }
+        this.placeCases();
+        this.placeEntityDraws();
     }
     /** La caméra ou le mode d'affichage ont-ils bougé depuis le dernier remplissage ? */
     viewChanged(){
@@ -220,6 +220,30 @@ export class MapView extends Control{
                 }
             }
         }
+        this.#placed.x = NaN;
+        this.#placed.y = NaN;
+    }
+
+    /**
+     * Recale chaque case sur le rectangle actuel du contrôle.
+     * createCases ne le fait qu'une fois : un déplacement de MapView
+     * change redress() sans recréer la grille, donc les sols resteraient
+     * collés à l'ancienne origine alors que les entités, replacées
+     * chaque image, suivraient le contrôle.
+     */
+    placeCases(){
+        const redressed = this.redress();
+        const placed = this.#placed;
+        if(placed.x === redressed.x && placed.y === redressed.y && placed.sizeCase === this.#sizeCase)
+            return;
+        placed.x = redressed.x;
+        placed.y = redressed.y;
+        placed.sizeCase = this.#sizeCase;
+
+        for(let i = 0; i < this.#cases.length; i++){
+            const c = this.#cases[i];
+            c.screen = this.screenFromCase(c.x, c.y);
+        }
     }
 
 
@@ -279,25 +303,20 @@ export class MapView extends Control{
     }
 
     /**
-     * Fait avancer les entités, puis range chacune dans la case qu'elle occupe.
-     * Refait à chaque image : c'est ce qui permet à un personnage de marcher et
-     * de passer devant puis derrière un mur au bon moment.
+     * Range chaque sprite dans la case qu'il occupe.
+     * Le monde a déjà tick : ici on ne fait que l'écran.
      */
-    placeEntityDraws(elapsed = 0){
+    placeEntityDraws(){
         for(let c = 0; c < this.#cases.length; c++)
             this.#cases[c].entityDraws = [];
 
-        this.placeDraws(this.#playerDraws, elapsed);
-        this.placeDraws(this.#entityDraws, elapsed);
+        this.placeDraws(this.#playerDraws);
+        this.placeDraws(this.#entityDraws);
     }
-    placeDraws(draws, elapsed){
+    placeDraws(draws){
         for(let i = 0; i < draws.length; i++){
             const draw = draws[i];
             const entity = draw.entity;
-
-            // Le monde avance d'abord, l'écran suit ensuite.
-            if(entity.advance(elapsed) && entity.id === this.selected.id)
-                this.noCeilingFromSelected();
 
             const stride = entity.stride();
             if(stride == null){

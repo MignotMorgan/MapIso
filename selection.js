@@ -1,4 +1,3 @@
-import { Pathfinding } from './pathfinding.js';
 import { Point } from './point.js';
 
 /**
@@ -38,14 +37,13 @@ export class Selection{
         return this.selectedEntity();
     }
 
-    /** Envoie l'entité choisie vers un cube. False si rien n'est choisi ou si le trajet est impossible. */
+    /** Intention « aller ici » : la carte pathfind, pas la vue. */
     moveSelectedTo(cube){
         const mapView = this.#mapView;
         if(cube == null || mapView.worldMap == null) return false;
         const entity = this.selectedEntity();
         if(entity == null) return false;
-        return new Pathfinding(entity.x, entity.y, entity.z, mapView.worldMap)
-                    .moveTo(entity, cube.x, cube.y, cube.z);
+        return mapView.worldMap.goTo(entity.id, cube.x, cube.y, cube.z);
     }
 
     /**

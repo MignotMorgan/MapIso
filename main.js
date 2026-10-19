@@ -10,11 +10,11 @@ function start(){
     form.id = "formMap";
     form.canMove = true;
     form.canResize = true;
-    //form.customTheme.background.color = "#5e5f5fff";
-    //form.customTheme.background.border.color = "#0515f0ff";
+    form.customTheme.background.color = "#5e5f5f";
 
     const factory = new FactoryMapView();
     const mapView = factory.create(750, 100, 620, 320);
+    mapView.id = "mapView";
     mapView.canMove = true;
     mapView.canResize = true;
     //mapView.canScale = true;

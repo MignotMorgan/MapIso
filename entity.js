@@ -94,27 +94,18 @@ export class Entity{
     stride(){ return this.#entityMove == null ? null : this.#entityMove.stride(); }
 
     /**
-     * Fait avancer l'entité de elapsed millisecondes le long de son trajet.
-     * Renvoie true si elle vient de changer de case, ce qui permet à la vue de
-     * ne réagir (plafonds, tri) qu'aux vrais changements.
-     *
-     * La position logique saute sur la case visée dès le début du pas :
-     * l'entité occupe la case dans laquelle elle entre, le sprite la rattrape.
+     * Du temps a passé. Aujourd'hui : le déplacement (délégué à EntityMove).
+     * Plus tard : dégâts, événements, IA — toujours ici, jamais dans la vue.
+     * Renvoie true si la case logique a changé.
      */
-    advance(elapsed){
-        if(!this.walking) return false;
-        if(this.#entityMove.advance(elapsed)){ this.stop(); return true; }
-
-        const stride = this.#entityMove.stride();
-        if(stride == null){ this.stop(); return true; }
-        if(this.#location.equals(stride.to)) return false;
-
-        this.#direction = stride.direction;
-        this.#location.copy(stride.to);
-        return true;
+    tick(elapsed){
+        if(this.#entityMove == null) return false;
+        const changed = this.#entityMove.progress(elapsed, this);
+        if(!this.walking) this.#bodyAnimated = false;
+        return changed;
     }
 
-    /** Termine le trajet : on se pose sur la dernière case et on range le carnet. */
+    /** Interrompt le trajet : on se pose et on range le carnet. */
     stop(){
         if(this.#entityMove == null) return;
         this.#location.copy(this.#entityMove.destination);

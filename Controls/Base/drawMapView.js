@@ -58,6 +58,9 @@ export class DrawMapView extends Draw {
         if(this.#showHover) this.drawLosange(this.control.casePoint.x, this.control.casePoint.y);
     }
 
+    /** Aucun remplissage : on voit le formulaire à travers le rectangle du contrôle. */
+    drawBackground(){}
+
     /**
      * Le monde, du fond vers l'avant.
      *
