@@ -50,16 +50,16 @@ export class EntityDraw{
     get y(){ return this.#entity.y; }
     get z(){ return this.#z; }
     set z(value){ this.#z = value ?? 0; }
-    get body(){ return this.#entity.body; }
+    get sprite(){ return this.#entity.sprite; }
     get canMove(){ return this.#entity.canMove; }
     get adjustment(){ return this.#entity.adjustment; }
     get direction(){ return this.#entity.direction; }
     set direction(value){ this.#entity.direction = value; }
 
 
-    toScreen(point){
-        this.#screen.x = point.x - (this.#width/2);
-        this.#screen.y = point.y - this.#height + (this.#width/2);
+    toScreen(screen){
+        this.#screen.x = screen.x - (this.#width/2);
+        this.#screen.y = screen.y - this.#height + (this.#width/2);
         if(this.#adjusted){
             const adjustment = this.#entity.adjustment;
             this.#screen.x += this.#sizeCase * (adjustment.x / 100);

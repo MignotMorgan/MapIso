@@ -52,48 +52,50 @@ export class DrawMapView extends Draw {
         if(control.worldMap == null) return;
 
         const paint = this.Paint;
-        const size = control.sizeCase;
+        const sizeCase = control.sizeCase;
         const cases = control.cases;
         const maxZ = control.maxZ;
 
         for(let z = 0; z <= maxZ; z++){
-            for(let c = 0; c < cases.length; c++)
-                this.drawCaseZ(paint, cases[c], z, size);
+            for(let i = 0; i < cases.length; i++){
+                const c = cases[i];
+                this.drawCaseZ(paint, c, z, sizeCase);
+            }
         }
     }
 
-    drawCaseZ(paint, C2D, z, size){
-        const x = C2D.screen.x;
-        const y = C2D.screen.y;
-        const cubes = C2D.cubes;
+    drawCaseZ(paint, c, z, sizeCase){
+        const sx = c.screen.x;
+        const sy = c.screen.y;
+        const cubes = c.cubes;
 
         if(cubes.length == 0){
-            if(z == 0) this.drawDefault(paint, x, y, size);
+            if(z == 0) this.drawDefault(paint, sx, sy, sizeCase);
         } else {
             for(let i = 0; i < cubes.length; i++){
                 const cube = cubes[i];
                 if(cube != null && cube.z == z)
-                    this.drawLayer(paint, cube.floors, cube.floorsSpeed, x, y, size, false);
+                    this.drawLayer(paint, cube.floors, cube.floorsSpeed, sx, sy, sizeCase, false);
             }
             for(let i = 0; i < cubes.length; i++){
                 const cube = cubes[i];
                 if(cube != null && cube.z == z)
-                    this.drawLayer(paint, cube.volumes, cube.volumesSpeed, x, y, size, true);
+                    this.drawLayer(paint, cube.volumes, cube.volumesSpeed, sx, sy, sizeCase, true);
             }
         }
-        this.drawEntities(paint, C2D, z);
+        this.drawEntities(paint, c, z);
     }
 
-    drawEntities(paint, C2D, z){
-        const draws = C2D.entityDraws;
-        for(let d = 0; d < draws.length; d++)
-            if(draws[d].z == z)
-                this.drawEntity(paint, draws[d]);
+    drawEntities(paint, c, z){
+        const draws = c.entityDraws;
+        for(let i = 0; i < draws.length; i++)
+            if(draws[i].z == z)
+                this.drawEntity(paint, draws[i]);
     }
 
     /** Sol de repère là où la carte est vide : indispensable pour éditer dans le vide. */
-    drawDefault(paint, x, y, size){
-        this.drawLayer(paint, this.control.floorsDefault, 0, x, y, size, false);
+    drawDefault(paint, sx, sy, sizeCase){
+        this.drawLayer(paint, this.control.floorsDefault, 0, sx, sy, sizeCase, false);
     }
 
     /**
@@ -101,21 +103,21 @@ export class DrawMapView extends Draw {
      * speed > 0 : le lot est une animation, on n'affiche qu'une image, choisie
      * d'après l'horloge, ce qui synchronise toutes les cases entre elles.
      */
-    drawLayer(paint, names, speed, x, y, size, volume){
+    drawLayer(paint, names, speed, sx, sy, sizeCase, volume){
         if(names == null || names.length == 0) return;
 
-        const rectY = volume ? y - size : y;
-        const rectHeight = volume ? size * 2 : size;
+        const rectY = volume ? sy - sizeCase : sy;
+        const rectHeight = volume ? sizeCase * 2 : sizeCase;
 
         if(speed > 0){
             const world = this.control.worldMap;
-            const t = world == null ? 0 : world.time;
-            const i = Math.floor(names.length * ((t % speed) / speed));
-            this.drawTexture(paint, names[i], x - size, rectY, size * 2, rectHeight);
+            const time = world == null ? 0 : world.time;
+            const i = Math.floor(names.length * ((time % speed) / speed));
+            this.drawTexture(paint, names[i], sx - sizeCase, rectY, sizeCase * 2, rectHeight);
             return;
         }
         for(let i = 0; i < names.length; i++)
-            this.drawTexture(paint, names[i], x - size, rectY, size * 2, rectHeight);
+            this.drawTexture(paint, names[i], sx - sizeCase, rectY, sizeCase * 2, rectHeight);
     }
 
     drawTexture(paint, name, x, y, width, height){
@@ -126,25 +128,25 @@ export class DrawMapView extends Draw {
 
     /** Le rectangle du sprite est déjà calculé par EntityDraw : on le remplit. */
     drawEntity(paint, entityDraw){
-        this.drawTexture(paint, entityDraw.body,
+        this.drawTexture(paint, entityDraw.sprite,
             entityDraw.screen.x, entityDraw.screen.y,
             entityDraw.width, entityDraw.height);
     }
     /**
      * Grille iso : 4 familles de droites, comme avant.
      * Le losange des cases n'est plus calé sur (0,0) : createCases garde
-     * x-y >= -2, x+y >= -2, |x|+|y| <= nbrCases*2. Les extrémités suivent.
+     * x-y >= -2, x+y >= -2, |x|+|y| <= caseCount*2. Les extrémités suivent.
      */
     drawGrid(){
         const paint = this.Paint;
         const control = this.control;
         const pad = 2;
-        const nbrCases = control.nbrCases - 1;
-        const maxCases = (control.nbrCases * 2) - 1 + pad;
+        const last = control.caseCount - 1;
+        const maxCases = (control.caseCount * 2) - 1 + pad;
         const color = "#043296ff";
         const lineWidth = 2;
 
-        for(let x = 0; x <= nbrCases + pad; x++){
+        for(let x = 0; x <= last + pad; x++){
             let from = control.screenFromCase(x - pad, 0 - x);
             let to = control.screenFromCase(maxCases - x, 0 - x);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
@@ -157,8 +159,8 @@ export class DrawMapView extends Draw {
             to = control.screenFromCase(x - pad, x + 1);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
 
-            from = control.screenFromCase(nbrCases + x + 1, 0 - (nbrCases + pad - x));
-            to = control.screenFromCase(nbrCases + x + 1, nbrCases + pad + 1 - x);
+            from = control.screenFromCase(last + x + 1, 0 - (last + pad - x));
+            to = control.screenFromCase(last + x + 1, last + pad + 1 - x);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
         }
     }
@@ -166,19 +168,15 @@ export class DrawMapView extends Draw {
         const control = this.control;
         const paint = this.Paint;
         const sizeCase = control.sizeCase;
-        const nbrCases = control.nbrCases;
-        const maxCases = (control.nbrCases*2);
+        const maxCases = (control.caseCount*2);
         const font = { family: "Arial", size: 10, style: "bold", color: "#000" };
         
-        for(let x = 0-maxCases; x <= maxCases; x++){
-            for(let y = 0-maxCases; y <= maxCases; y++){
-                let c = control.screenFromCase(x, y);
-                const abs = Math.abs(x)+Math.abs(y);
-                //if(x - y >= -2 && x + y >= -2 && abs <= nbrCases*2){
-                
-                //if( x+y < -2 || x+y > nbrcube*2 || x-y < -1 || x-y > nbrcube*2+1 )continue;
-                if(x - y >= -2 && x + y >= -2 && abs <= maxCases){
-                    paint.drawText(c.x-sizeCase/4, c.y+sizeCase/2, `${x},${y}`, font);
+        for(let x = -maxCases; x <= maxCases; x++){
+            for(let y = -maxCases; y <= maxCases; y++){
+                const screen = control.screenFromCase(x, y);
+                const manhattan = Math.abs(x)+Math.abs(y);
+                if(x - y >= -2 && x + y >= -2 && manhattan <= maxCases){
+                    paint.drawText(screen.x-sizeCase/4, screen.y+sizeCase/2, `${x},${y}`, font);
                 }
             }
         }
@@ -192,14 +190,12 @@ export class DrawMapView extends Draw {
     drawHover(cx, cy){
         const control = this.control;
         const paint = this.Paint;
-        const size = control.sizeCase;
+        const sizeCase = control.sizeCase;
 
-        const C2D = control.findCase(cx, cy);
-        const screen = C2D != null ? C2D.screen : control.screenFromCase(cx, cy);
-        const x = screen.x;
-        const y = screen.y;
+        const c = control.findCase(cx, cy);
+        const screen = c != null ? c.screen : control.screenFromCase(cx, cy);
 
-        paint.withAlpha(0.35, () => paint.fillLosange(x, y, size, "#ff0000"));
-        paint.strokeLosange(x, y, size, "#ff0000", 2);
+        paint.withAlpha(0.35, () => paint.fillLosange(screen.x, screen.y, sizeCase, "#ff0000"));
+        paint.strokeLosange(screen.x, screen.y, sizeCase, "#ff0000", 2);
     }
 }

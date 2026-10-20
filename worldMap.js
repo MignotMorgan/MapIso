@@ -37,21 +37,21 @@ export class NoCeilingZone{
     get depth(){ return this.#depth; }
 
     /** Le point est-il dans le volume de la zone ? Sert à savoir dans quelle pièce est une entité. */
-    contains(px, py, pz){
-        return this.#x <= px && px <= this.#x + this.#width
-            && this.#y <= py && py <= this.#y + this.#height
-            && this.#z <= pz && pz <= this.#z + this.#depth;
+    contains(wx, wy, wz){
+        return this.#x <= wx && wx <= this.#x + this.#width
+            && this.#y <= wy && wy <= this.#y + this.#height
+            && this.#z <= wz && wz <= this.#z + this.#depth;
     }
 
     /**
-     * Faut-il masquer le cube (px,py,pz) parce qu'il fait partie du plafond de cette zone ?
+     * Faut-il masquer le cube (wx,wy,wz) parce qu'il fait partie du plafond de cette zone ?
      * On masque tout ce qui est au-dessus du sol de la pièce (z strictement supérieur).
-     * wallCeil décale le bord : à 0 les murs restent visibles, à 1 ils tombent aussi.
+     * hideWalls décale le bord : à 0 les murs restent visibles, à 1 ils tombent aussi.
      */
-    hides(px, py, pz, wallCeil = 0){
-        return this.#x + wallCeil <= px && px <= this.#x + this.#width
-            && this.#y + wallCeil <= py && py <= this.#y + this.#height
-            && this.#z < pz;
+    hides(wx, wy, wz, hideWalls = 0){
+        return this.#x + hideWalls <= wx && wx <= this.#x + this.#width
+            && this.#y + hideWalls <= wy && wy <= this.#y + this.#height
+            && this.#z < wz;
     }
 
     /** Reconstruit une zone depuis du JSON. */
@@ -120,13 +120,13 @@ export class WorldMap{
         if(cubes != null) this.loadCubes(cubes);
 
         const players = options.players ?? [];
-        for(let p = 0; p < players.length; p++) this.addPlayer(players[p]);
+        for(let i = 0; i < players.length; i++) this.addPlayer(players[i]);
 
         const entities = options.entities ?? [];
-        for(let e = 0; e < entities.length; e++) this.addEntity(entities[e]);
+        for(let i = 0; i < entities.length; i++) this.addEntity(entities[i]);
 
         const zones = options.noCeilingZones ?? [];
-        for(let n = 0; n < zones.length; n++) this.addNoCeilingZone(zones[n]);
+        for(let i = 0; i < zones.length; i++) this.addNoCeilingZone(zones[i]);
     }
 
     get name(){ return this.#name; }
@@ -158,7 +158,7 @@ export class WorldMap{
         return this.#cubes[x][y][z] ?? null;
     }
 
-    /** Crée un cube et le place dans la grille. options : floors, volumes, cross… Retourne le cube. */
+    /** Crée un cube et le place dans la grille. options : floors, volumes, walkable… Retourne le cube. */
     setCube(x, y, z, options = {}){
         if(!this.inBounds(x, y, z)) return null;
         const cube = CoreMapView.FactoryWorld.createCube(x, y, z, options);
@@ -208,7 +208,7 @@ export class WorldMap{
         return null;
     }
 
-    /** Remplit tout un étage : worldMap.fillFloor(0, { cross:true, floors:["herbe"] }). */
+    /** Remplit tout un étage : worldMap.fillFloor(0, { walkable:true, floors:["herbe"] }). */
     fillFloor(z, options = {}){
         if(z < 0 || z >= this.#depth) return;
         for(let x = 0; x < this.#width; x++)
@@ -257,7 +257,7 @@ export class WorldMap{
 
     /**
      * Un tour du monde : mesure le temps, puis tick joueurs et PNJ / objets.
-     * Renvoie les entités dont la case logique a changé (toits, follow…).
+     * Renvoie les entités dont la case logique a changé (toits, following…).
      */
     tick(){
         const elapsed = this.#measureElapsed();
@@ -271,10 +271,10 @@ export class WorldMap{
      * Intention « aller ici ». Seule la carte pathfind et lance la marche :
      * la vue et le futur client n'ont qu'à envoyer l'id et la case.
      */
-    goTo(id, x, y, z){
+    goTo(id, wx, wy, wz){
         const entity = this.findEntity(id);
         if(entity == null || !entity.canMove) return false;
-        return new Pathfinding(entity.x, entity.y, entity.z, this).moveTo(entity, x, y, z);
+        return new Pathfinding(entity.x, entity.y, entity.z, this).moveTo(entity, wx, wy, wz);
     }
 
     #measureElapsed(){
@@ -307,7 +307,7 @@ export class WorldMap{
         return this.#attach(entity, this.#players);
     }
 
-    /** Crée un PNJ ou un objet mobile. options : id, width, body, canMove… */
+    /** Crée un PNJ ou un objet mobile. options : id, width, sprite, canMove… */
     spawn(x, y, z, options = {}){
         return this.addEntity(CoreMapView.FactoryWorld.createEntity(x, y, z, options));
     }
@@ -319,13 +319,13 @@ export class WorldMap{
 
     /** Cherche par identifiant : joueurs d'abord, puis PNJ / objets. */
     findEntity(id){
-        for(let p = 0; p < this.#players.length; p++)
-            if(this.#players[p] != null && this.#players[p].id == id)
-                return this.#players[p];
+        for(let i = 0; i < this.#players.length; i++)
+            if(this.#players[i] != null && this.#players[i].id === id)
+                return this.#players[i];
 
-        for(let e = 0; e < this.#entities.length; e++)
-            if(this.#entities[e] != null && this.#entities[e].id == id)
-                return this.#entities[e];
+        for(let i = 0; i < this.#entities.length; i++)
+            if(this.#entities[i] != null && this.#entities[i].id === id)
+                return this.#entities[i];
 
         return null;
     }
@@ -338,11 +338,11 @@ export class WorldMap{
     }
 
     /** Toutes les entités dont le volume contient ce point : joueurs et PNJ / objets. */
-    entitiesAt(x, y, z){
+    entitiesAt(wx, wy, wz){
         const found = [];
         const all = this.#players.concat(this.#entities);
         for(let i = 0; i < all.length; i++)
-            if(all[i] != null && all[i].contains(x, y, z))
+            if(all[i] != null && all[i].contains(wx, wy, wz))
                 found[found.length] = all[i];
         return found;
     }
@@ -351,7 +351,7 @@ export class WorldMap{
 
     /** Déclare une pièce : addNoCeilingZone(zone) ou addNoCeilingZone(x,y,z,width,height,depth). */
     addNoCeilingZone(x, y, z, width, height, depth){
-        const zone = (typeof x == "object" || x == null)
+        const zone = (typeof x === "object" || x == null)
             ? NoCeilingZone.from(x)
             : new NoCeilingZone(x, y, z, width, height, depth);
         this.#noCeilingZones[this.#noCeilingZones.length] = zone;
@@ -366,10 +366,10 @@ export class WorldMap{
      * Pièces contenant ce point : c'est ce que MapView garde en mémoire quand le
      * joueur entre dans un bâtiment, pour ensuite masquer le plafond correspondant.
      */
-    zonesAt(x, y, z){
+    zonesAt(wx, wy, wz){
         const found = [];
         for(let i = 0; i < this.#noCeilingZones.length; i++)
-            if(this.#noCeilingZones[i].contains(x, y, z))
+            if(this.#noCeilingZones[i].contains(wx, wy, wz))
                 found[found.length] = this.#noCeilingZones[i];
         return found;
     }
@@ -428,7 +428,7 @@ export class WorldMap{
 
     static #pull(list, id){
         for(let i = 0; i < list.length; i++)
-            if(list[i] != null && list[i].id == id)
+            if(list[i] != null && list[i].id === id)
                 return list.splice(i, 1)[0];
         return null;
     }

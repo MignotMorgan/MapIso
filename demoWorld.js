@@ -43,7 +43,7 @@ export class DemoWorld{
     createWorldMap(){
         const worldMap = CoreMapView.FactoryWorld.createWorldMap(this.#width, this.#height, this.#depth, {name:"démo"});
 
-        worldMap.fillFloor(0, { cross:true, floors:["herbe"] });
+        worldMap.fillFloor(0, { walkable:true, floors:["herbe"] });
         this.pond(worldMap);
         this.path(worldMap);
         this.platform(worldMap);
@@ -54,17 +54,17 @@ export class DemoWorld{
         return worldMap;
     }
 
-    /** De l'eau : un sol qu'on voit mais qu'on ne traverse pas (cross à faux). */
+    /** De l'eau : un sol qu'on voit mais qu'on ne traverse pas (walkable à faux). */
     pond(worldMap){
         for(let x = 1; x <= 4; x++)
             for(let y = 0; y <= 3; y++)
-                worldMap.setCube(x, y, 0, { cross:false, floors:["eau"] });
+                worldMap.setCube(x, y, 0, { walkable:false, floors:["eau"] });
     }
 
     /** Un chemin de sable qui relie la maison à la plateforme. */
     path(worldMap){
         for(let x = 6; x <= 14; x++)
-            worldMap.setCube(x, 5, 0, { cross:true, floors:["sable"] });
+            worldMap.setCube(x, 5, 0, { walkable:true, floors:["sable"] });
     }
 
     /**
@@ -75,8 +75,8 @@ export class DemoWorld{
     platform(worldMap){
         for(let x = 7; x <= 10; x++)
             for(let y = 6; y <= 8; y++){
-                worldMap.setCube(x, y, 0, { cross:false, volumes:["pierre"] });
-                worldMap.setCube(x, y, 1, { cross:true,  floors:["pierre"] });
+                worldMap.setCube(x, y, 0, { walkable:false, volumes:["pierre"] });
+                worldMap.setCube(x, y, 1, { walkable:true,  floors:["pierre"] });
             }
     }
 
@@ -92,8 +92,8 @@ export class DemoWorld{
             for(let y = top; y <= bottom; y++){
                 const wall = (x == left || x == right || y == top || y == bottom);
                 const door = (x == 14 && y == bottom);
-                if(wall && !door) worldMap.setCube(x, y, 0, { cross:false, volumes:["bois"] });
-                worldMap.setCube(x, y, 1, { cross:false, floors:["toit"] });
+                if(wall && !door) worldMap.setCube(x, y, 0, { walkable:false, volumes:["bois"] });
+                worldMap.setCube(x, y, 1, { walkable:false, floors:["toit"] });
             }
 
         worldMap.addNoCeilingZone(left, top, 0, right - left, bottom - top, 2);
@@ -103,13 +103,13 @@ export class DemoWorld{
         const spots = [[0,0],[2,4],[4,6],[6,8],[11,4],[14,6]];
         for(let i = 0; i < spots.length; i++)
             worldMap.spawn(spots[i][0], spots[i][1], 0, {
-                id: "arbre" + i, body:"arbre", width:1, height:3, canTarget:true
+                id: "arbre" + i, sprite:"arbre", width:1, height:3, canTarget:true
             });
     }
 
     people(worldMap){
-        worldMap.spawnPlayer(10, 5, 0, { id:"heros",      body:"heros",      width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(14, 2, 0, { id:"villageois", body:"villageois", width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(8,  7, 1, { id:"guetteur",   body:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        worldMap.spawnPlayer(10, 5, 0, { id:"heros",      sprite:"heros",      width:1, height:2, canMove:true, canTarget:true });
+        worldMap.spawn(14, 2, 0, { id:"villageois", sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        worldMap.spawn(8,  7, 1, { id:"guetteur",   sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
     }
 }

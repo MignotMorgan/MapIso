@@ -36,7 +36,7 @@ export class MouseMapView extends Mouse{
     /** Clic milieu : on saisit la carte. Le suivi caméra s'arrête. */
     clickMiddle(){
         const control = this.control;
-        control.follow = false;
+        control.following = false;
         const mouse = control.mouseFromScreen();
         this.#panFrom.set(mouse.x, mouse.y);
     }
@@ -49,6 +49,6 @@ export class MouseMapView extends Mouse{
 
     wheel(deltaX, deltaY){
         const control = this.control;
-        control.nbrCases = deltaY < 0 ? control.nbrCases -= 1 : control.nbrCases += 1;
+        control.caseCount = deltaY < 0 ? control.caseCount -= 1 : control.caseCount += 1;
     }
 }

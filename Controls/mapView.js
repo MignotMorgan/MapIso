@@ -6,25 +6,21 @@ import { Projector } from '../projector.js';
 import { Selection } from '../selection.js';
 
 export class MapView extends Control{
-    //wallCeil : Mode d'affichage des murs et plafonds
-    #wallCeil = 0;
-    //follow : la caméra colle à l'entité sélectionnée (le pan milieu l'éteint)
-    #follow = true;
+    //hideWalls : 0 les murs restent, 1 ils partent avec le plafond
+    #hideWalls = 0;
+    //following : la caméra colle à l'entité sélectionnée (le pan milieu l'éteint)
+    #following = true;
 
     // Carte voxel (cubes + joueurs + PNJ). Remplace l'ancien PageInfo.Map.
     #worldMap = null;
     //entities : PNJ / objets propres à cette vue (en plus de worldMap.entities)
-    #entities = new Array();
+    #entities = [];
     //entityDraws : Tableau optimisé des entités pour l'affichage
-    #entityDraws = new Array();
+    #entityDraws = [];
     //playerDraws : vues écran des joueurs
     #playerDraws = [];
     //noCeilingZones : Tableau des zones sans plafond pour la visibilité
-    #noCeilingZones = new Array();
-    //resizeCases : Flag indiquant qu'il faut recalculer toutes les cases
-    //#resizeCases = true;
-    //createCase : Flag indiquant qu'il faut recréer le contenu des cases
-    #createCase = false;
+    #noCeilingZones = [];
     //createCubes : Flag indiquant qu'il faut traiter de nouveaux cubes
     #createCubes = false;
     //rebuildEntityDraws : il faut recréer les EntityDraw (carte, zoom, sprites)
@@ -38,12 +34,10 @@ export class MapView extends Control{
      * losange. Utiliser moveTo() pour la déplacer, afin que la vue se recalcule.
      */
     #location = new Location();
-    #revise = {screen: new Point(), adjustment: new Point(), step:25, modified:false, rolled:0};
+    #panState = {screen: new Point(), adjustment: new Point(), step:25, modified:false, rolled:0};
     #sizeCase = 0;
-    #nbrCases= 10;
+    #caseCount = 10;
     #modified = false;
-    //#colsCase;
-    //#rowsCase;
     //cases : Tableau des cases 3D visibles à l'écran
     #cases = [];
     //maxZ : Niveau maximum d'affichage en profondeur (altitude)
@@ -53,7 +47,7 @@ export class MapView extends Control{
     //adjusted : si vrai, l'offset sous-case des entités décale leur sprite
     #adjusted = true;
     // Repères du dernier remplissage, pour ne recalculer les colonnes qu'en cas de changement.
-    #drawn = {x:NaN, y:NaN, z:NaN, maxZ:-1, wallCeil:-1};
+    #drawn = {x:NaN, y:NaN, z:NaN, maxZ:-1, hideWalls:-1};
     // Dernière origine écran des cases : si le contrôle bouge, les sols doivent suivre.
     #placed = {x:NaN, y:NaN, sizeCase:0};
     #projector = null;
@@ -69,7 +63,7 @@ export class MapView extends Control{
         super.initialize();
         this.customTheme.background.color = "transparent";
         this.customTheme.background.rectangle.lineWidth = 0;
-        this.modify();
+        this.rebuild();
     }
     /**
      * Un tour de boucle : on ne refait que ce qui a changé.
@@ -79,7 +73,7 @@ export class MapView extends Control{
     tick(){
         super.tick();
         if(this.#modified)
-            this.modify();
+            this.rebuild();
 
         if(this.#worldMap != null){
             const moved = this.#worldMap.tick();
@@ -93,7 +87,7 @@ export class MapView extends Control{
         }
         // La caméra d'abord : sinon createCubes se fait sur l'ancienne
         // location, et l'image suivante recolle — un glitch d'une frame.
-        if(this.#follow) this.followSelected();
+        if(this.#following) this.followSelected();
 
         if(this.viewChanged()) this.#createCubes = true;
         if(this.#createCubes){
@@ -112,32 +106,32 @@ export class MapView extends Control{
         const drawn = this.#drawn;
         const location = this.#location;
         if(drawn.x === location.x && drawn.y === location.y && drawn.z === location.z
-            && drawn.maxZ === this.#maxZ && drawn.wallCeil === this.#wallCeil) return false;
+            && drawn.maxZ === this.#maxZ && drawn.hideWalls === this.#hideWalls) return false;
         drawn.x = location.x;
         drawn.y = location.y;
         drawn.z = location.z;
         drawn.maxZ = this.#maxZ;
-        drawn.wallCeil = this.#wallCeil;
+        drawn.hideWalls = this.#hideWalls;
         return true;
     }
     /** Déplace la caméra. Le monde sous la vue est recalculé au prochain tour. */
-    moveTo(x, y, z = this.#location.z){
-        this.#location.set(x, y, z);
+    moveTo(wx, wy, wz = this.#location.z){
+        this.#location.set(wx, wy, wz);
         this.#createCubes = true;
     }
     /**
-     * Glisse la carte de (dx, dy) pixels. L'offset passe par revise
+     * Glisse la carte de (dx, dy) pixels. L'offset passe par panState
      * (le projecteur), puis se convertit en cases dès qu'il dépasse une maille.
      */
     pan(dx, dy){
-        const adjustment = this.#revise.adjustment;
+        const adjustment = this.#panState.adjustment;
         adjustment.x += dx ?? 0;
         adjustment.y += dy ?? 0;
         this.#foldPan();
     }
     /** Place un point du monde au centre de la vue. */
-    lookAt(x, y, z = this.#location.z){
-        this.#centerOn(this.screenFromLocation(x, y, z));
+    lookAt(wx, wy, wz = this.#location.z){
+        this.#centerOn(this.screenFromLocation(wx, wy, wz));
     }
     /** Caméra sur l'entité choisie : le sprite interpolé, pas la case logique. */
     followSelected(){
@@ -153,7 +147,7 @@ export class MapView extends Control{
     }
     /**
      * Recale pour que ce point écran tombe au centre du contrôle.
-     * Le centre est le rectangle du MapView, pas redress() : sinon l'offset
+     * Le centre est le rectangle du MapView, pas origin() : sinon l'offset
      * de pan est déjà dans la cible, l'erreur revient chaque image et la
      * caméra tremble.
      */
@@ -166,20 +160,18 @@ export class MapView extends Control{
     }
     /**
      * Un décalage écran trop grand devient un déplacement de location :
-     * les cubes hors vue se chargent, le reste (revise) reste un sous-case.
+     * les cubes hors vue se chargent, le reste (panState) reste un sous-case.
      */
     #foldPan(){
-        const s = this.#sizeCase;
-        if(!(s > 0)) return;
-        const adjustment = this.#revise.adjustment;
-        const ax = adjustment.x;
-        const ay = adjustment.y;
-        const ilx = Math.trunc((-ax - 2 * ay) / (2 * s));
-        const ily = Math.trunc((ax - 2 * ay) / (2 * s));
-        if(ilx === 0 && ily === 0) return;
-        this.moveTo(this.#location.x + ilx, this.#location.y + ily);
-        adjustment.x -= s * (ily - ilx);
-        adjustment.y += (s / 2) * (ilx + ily);
+        const sizeCase = this.#sizeCase;
+        if(!(sizeCase > 0)) return;
+        const adjustment = this.#panState.adjustment;
+        const shiftX = Math.trunc((-adjustment.x - 2 * adjustment.y) / (2 * sizeCase));
+        const shiftY = Math.trunc((adjustment.x - 2 * adjustment.y) / (2 * sizeCase));
+        if(shiftX === 0 && shiftY === 0) return;
+        this.moveTo(this.#location.x + shiftX, this.#location.y + shiftY);
+        adjustment.x -= sizeCase * (shiftY - shiftX);
+        adjustment.y += (sizeCase / 2) * (shiftX + shiftY);
     }
     get casePoint(){ return this.#casePoint; }
     // On recopie dans le point existant : la vue garde le sien, personne ne
@@ -188,18 +180,14 @@ export class MapView extends Control{
     get location(){ return this.#location; }
     get projector(){ return this.#projector; }
     get selection(){ return this.#selection; }
-    get revise(){ return this.#revise; }
+    get panState(){ return this.#panState; }
     get sizeCase(){ return this.#sizeCase; }
-    get nbrCases(){ return this.#nbrCases; }
-    set nbrCases(value){ 
-        value < 1 ? value = 1 : this.#nbrCases = value; 
-        //this.#sizeCase = this.sizeCaseFrame(); 
-        this.modified();
+    get caseCount(){ return this.#caseCount; }
+    set caseCount(value){ 
+        value < 1 ? value = 1 : this.#caseCount = value; 
+        this.invalidate();
     }
 
-    //set sizeCase(value){ this.#sizeCase = value; }
-    //get colsCase(){ return this.#colsCase; }
-    //get rowsCase(){ return this.#rowsCase; }
     get cases(){ return this.#cases; }
     set cases(value){ this.#cases = value; }
     get maxZ(){ return this.#maxZ; }
@@ -210,15 +198,14 @@ export class MapView extends Control{
     set adjusted(value){ this.#adjusted = !!value; this.#rebuildEntityDraws = true; }
 
 
-    get follow(){ return this.#follow; }
-    set follow(value){ this.#follow = !!value; }
-    get wallCeil(){ return this.#wallCeil; }
-    set wallCeil(value){ this.#wallCeil = value ?? 0; }
+    get following(){ return this.#following; }
+    set following(value){ this.#following = !!value; }
+    get hideWalls(){ return this.#hideWalls; }
+    set hideWalls(value){ this.#hideWalls = value ?? 0; }
     get selected(){ return this.#selection.selected; }
     get target(){ return this.#selection.target; }
     get selectedMulti(){ return this.#selection.selectedMulti; }
     get selectedMouse(){ return this.#selection.selectedMouse; }
-    //get cases3D(){ return this.#cases3D; }
     get worldMap(){ return this.#worldMap; }
     /** Brancher une carte suffit : la vue se remplit toute seule au tour suivant. */
     set worldMap(value){
@@ -231,13 +218,11 @@ export class MapView extends Control{
     get entityDraws(){ return this.#entityDraws; }
     get playerDraws(){ return this.#playerDraws; }
     get noCeilingZones(){ return this.#noCeilingZones; }
-    //get resizeCases(){ return this.#resizeCases; }
-    get createCase(){ return this.#createCase; }
     get createCubes(){ return this.#createCubes; }
     get rebuildEntityDraws(){ return this.#rebuildEntityDraws; }
 
-    modified(){ this.#modified = true; }
-    modify(){
+    invalidate(){ this.#modified = true; }
+    rebuild(){
         this.#sizeCase = this.sizeCaseFrame();
         this.createCases();
         this.#modified = false;
@@ -245,37 +230,28 @@ export class MapView extends Control{
         this.#rebuildEntityDraws = true;   // la taille des sprites dépend de sizeCase
     }
 
-    newCase(x, y ){
-        const c = CoreMapView.FactoryWorld.createCase(x, y);
-        c.screen = this.screenFromCase(x, y );
+    newCase(cx, cy){
+        const c = CoreMapView.FactoryWorld.createCase(cx, cy);
+        c.screen = this.screenFromCase(cx, cy);
         return c;
     }
-    nbrCasesFrame(){
-        const sizeCase = this.sizeCase;
-        const redressed = this.redress();
-        const width = redressed.width;
-        return Math.round(width/sizeCase/2);
-    }
     sizeCaseFrame(){
-        const sizeCase = this.sizeCase;
-        const redressed = this.redress();
-        const width = redressed.width;
-        return (width/this.nbrCases)/2;
+        return (this.origin().width / this.caseCount) / 2;
     }
-    redress(){ return this.#projector.redress(); }
+    origin(){ return this.#projector.origin(); }
     mouseFromScreen(){ return this.#projector.mouseFromScreen(); }
     caseFromMouse(){ return this.#projector.caseFromMouse(); }
-    caseFromScreen(x, y){ return this.#projector.caseFromScreen(x, y); }
-    screenFromCase(x, y){ return this.#projector.screenFromCase(x, y); }
-    caseFromLocation(x, y, z){ return this.#projector.caseFromLocation(x, y, z); }
-    screenFromLocation(x, y, z){ return this.#projector.screenFromLocation(x, y, z); }
+    caseFromScreen(sx, sy){ return this.#projector.caseFromScreen(sx, sy); }
+    screenFromCase(cx, cy){ return this.#projector.screenFromCase(cx, cy); }
+    caseFromLocation(wx, wy, wz){ return this.#projector.caseFromLocation(wx, wy, wz); }
+    screenFromLocation(wx, wy, wz){ return this.#projector.screenFromLocation(wx, wy, wz); }
     createCases(){
-        const maxCases = this.nbrCases*2;
+        const maxCases = this.caseCount*2;
         this.cases = [];
-        for(let x = 0-maxCases; x <= maxCases; x++){
-            for(let y = 0-maxCases; y <= maxCases; y++){
-                const abs = Math.abs(x)+Math.abs(y);
-                if(x - y >= -2 && x + y >= -2 && abs <= maxCases){
+        for(let x = -maxCases; x <= maxCases; x++){
+            for(let y = -maxCases; y <= maxCases; y++){
+                const manhattan = Math.abs(x)+Math.abs(y);
+                if(x - y >= -2 && x + y >= -2 && manhattan <= maxCases){
                     const c = this.newCase(x, y);
                     this.cases.push(c);
                 }
@@ -294,17 +270,17 @@ export class MapView extends Control{
     /**
      * Recale chaque case sur le rectangle actuel du contrôle.
      * createCases ne le fait qu'une fois : un déplacement de MapView
-     * change redress() sans recréer la grille, donc les sols resteraient
+     * change origin() sans recréer la grille, donc les sols resteraient
      * collés à l'ancienne origine alors que les entités, replacées
      * chaque image, suivraient le contrôle.
      */
     placeCases(){
-        const redressed = this.redress();
+        const origin = this.origin();
         const placed = this.#placed;
-        if(placed.x === redressed.x && placed.y === redressed.y && placed.sizeCase === this.#sizeCase)
+        if(placed.x === origin.x && placed.y === origin.y && placed.sizeCase === this.#sizeCase)
             return;
-        placed.x = redressed.x;
-        placed.y = redressed.y;
+        placed.x = origin.x;
+        placed.y = origin.y;
         placed.sizeCase = this.#sizeCase;
 
         for(let i = 0; i < this.#cases.length; i++){
@@ -317,35 +293,35 @@ export class MapView extends Control{
     
     /**
      * Remplit chaque case visible avec la colonne de cubes monde.
-     * px/py : origine caméra + offset case, moins z caméra (parallaxe).
+     * wx/wy : origine caméra + offset case, moins z caméra (parallaxe).
      * À z croissant on ajoute z à x et y : un étage « recule » en iso.
      */
     createCubes()
     {
-        if(this.worldMap == null)return;
+        if(this.worldMap == null) return;
         for(let i = 0; i < this.cases.length; i++)
         {
-            const C2D = this.cases[i];
-            C2D.cubes = [];
-            const px = this.location.x + C2D.x - this.location.z;
-            const py = this.location.y + C2D.y - this.location.z;
-            let c;
+            const c = this.cases[i];
+            c.cubes = [];
+            const wx = this.location.x + c.x - this.location.z;
+            const wy = this.location.y + c.y - this.location.z;
+            let cube;
 
             for (let z = 0; z <= this.maxZ; z++)
             {
-                c = this.findCube(px + z, py + z, z);
-                if(c != null && !this.containsNoCeiling(c.x, c.y, c.z))
-                        C2D.cubes[C2D.cubes.length] = c;
+                cube = this.findCube(wx + z, wy + z, z);
+                if(cube != null && !this.hidesCeiling(cube.x, cube.y, cube.z))
+                        c.cubes[c.cubes.length] = cube;
             }
 
         }
     }
 
-    /** PNJ et objets mobiles : ceux de la carte, plus ceux propres à cette vue. */
-    mobiles(){
-        const mobiles = this.worldMap == null ? [] : this.worldMap.entities;
-        if(this.#entities.length == 0) return mobiles;
-        return mobiles.concat(this.#entities);
+    /** PNJ et objets : ceux de la carte, plus ceux propres à cette vue. */
+    npcs(){
+        const npcs = this.worldMap == null ? [] : this.worldMap.entities;
+        if(this.#entities.length === 0) return npcs;
+        return npcs.concat(this.#entities);
     }
 
     /**
@@ -356,17 +332,17 @@ export class MapView extends Control{
     createEntityDraws(){
         const sizeCase = this.sizeCase;
         const players = this.worldMap == null ? [] : this.worldMap.players;
-        const mobiles = this.mobiles();
+        const npcs = this.npcs();
 
         this.#playerDraws = [];
-        for(let p = 0; p < players.length; p++)
-            if(players[p] != null)
-                this.#playerDraws[this.#playerDraws.length] = new EntityDraw(players[p], sizeCase, this.#adjusted);
+        for(let i = 0; i < players.length; i++)
+            if(players[i] != null)
+                this.#playerDraws[this.#playerDraws.length] = new EntityDraw(players[i], sizeCase, this.#adjusted);
 
         this.#entityDraws = [];
-        for(let e = 0; e < mobiles.length; e++)
-            if(mobiles[e] != null)
-                this.#entityDraws[this.#entityDraws.length] = new EntityDraw(mobiles[e], sizeCase, this.#adjusted);
+        for(let i = 0; i < npcs.length; i++)
+            if(npcs[i] != null)
+                this.#entityDraws[this.#entityDraws.length] = new EntityDraw(npcs[i], sizeCase, this.#adjusted);
     }
 
     /**
@@ -374,8 +350,8 @@ export class MapView extends Control{
      * Le monde a déjà tick : ici on ne fait que l'écran.
      */
     placeEntityDraws(){
-        for(let c = 0; c < this.#cases.length; c++)
-            this.#cases[c].entityDraws = [];
+        for(let i = 0; i < this.#cases.length; i++)
+            this.#cases[i].entityDraws = [];
 
         this.placeDraws(this.#playerDraws);
         this.placeDraws(this.#entityDraws);
@@ -389,8 +365,8 @@ export class MapView extends Control{
             if(stride == null){
                 draw.toScreen(this.screenFromLocation(entity.x, entity.y, entity.z));
                 draw.z = entity.z;
-                const C2D = this.findCaseLocation(entity.x, entity.y, entity.z);
-                if(C2D != null) C2D.entityDraws[C2D.entityDraws.length] = draw;
+                const c = this.findCaseLocation(entity.x, entity.y, entity.z);
+                if(c != null) c.entityDraws[c.entityDraws.length] = draw;
             } else {
                 // Pieds interpolés en x,y ; l'étage du peintre est celui qu'elle occupe
                 // (l'arrivée). Sinon une montée la range au sol et le gazon de
@@ -400,15 +376,15 @@ export class MapView extends Control{
                     this.screenFromLocation(stride.to.x, stride.to.y, stride.to.z)));
                 const at = stride.at();
                 draw.z = entity.z;
-                const C2D = this.findCaseLocation(at.x, at.y, entity.z);
-                if(C2D != null) C2D.entityDraws[C2D.entityDraws.length] = draw;
+                const c = this.findCaseLocation(at.x, at.y, entity.z);
+                if(c != null) c.entityDraws[c.entityDraws.length] = draw;
             }
         }
     }
 
     select(id){
         const entity = this.#selection.select(id);
-        if(entity != null) this.#follow = true;
+        if(entity != null) this.#following = true;
         return entity;
     }
     moveSelectedTo(cube){ return this.#selection.moveSelectedTo(cube); }
@@ -419,7 +395,7 @@ export class MapView extends Control{
     selectedMultiMove(){ this.#selection.selectedMultiMove(); }
     selectedEntity(){ return this.#selection.selectedEntity(); }
     selectedTarget(){ return this.#selection.selectedTarget(); }
-    containsEntity(entity, x, y, z){ return this.#selection.contains(entity, x, y, z); }
+    containsEntity(entity, wx, wy, wz){ return this.#selection.contains(entity, wx, wy, wz); }
 
     /**
      * Recalcule les pièces dont il faut masquer le plafond, d'après l'entité
@@ -431,14 +407,14 @@ export class MapView extends Control{
         else this.noCeilingFrom(entity.x, entity.y, entity.z);
     }
     /** Pièces contenant ce point : c'est la carte qui sait, on lui demande. */
-    noCeilingFrom(x, y, z){
-        this.#noCeilingZones = this.worldMap == null ? [] : this.worldMap.zonesAt(x, y, z);
+    noCeilingFrom(wx, wy, wz){
+        this.#noCeilingZones = this.worldMap == null ? [] : this.worldMap.zonesAt(wx, wy, wz);
         this.#createCubes = true;
     }
-    /** Ce cube fait-il partie d'un plafond à masquer ? wallCeil décide du sort des murs. */
-    containsNoCeiling(x, y, z){
+    /** Ce cube fait-il partie d'un plafond à masquer ? hideWalls décide du sort des murs. */
+    hidesCeiling(wx, wy, wz){
         for(let i = 0; i < this.#noCeilingZones.length; i++)
-            if(this.#noCeilingZones[i].hides(x, y, z, this.#wallCeil)) return true;
+            if(this.#noCeilingZones[i].hides(wx, wy, wz, this.#hideWalls)) return true;
         return false;
     }
     /**
@@ -446,26 +422,26 @@ export class MapView extends Control{
      * MapView ignore ainsi comment les cubes sont rangés, et pourra afficher
      * aussi bien une carte unique qu'un assemblage de cartes.
      */
-    findCube(x, y, z){
+    findCube(wx, wy, wz){
         if(this.worldMap == null) return null;
-        return this.worldMap.cubeAt(x, y, z);
+        return this.worldMap.cubeAt(wx, wy, wz);
     }
     /** Ce point fait-il partie du monde ? (différent de « la donnée est chargée »). */
-    inWorld(x, y, z, worldMap = this.worldMap){
+    inWorld(wx, wy, wz, worldMap = this.worldMap){
         if(worldMap == null) return false;
-        return worldMap.inBounds(x, y, z);
+        return worldMap.inBounds(wx, wy, wz);
     }
     /** Case du viewport (losange affiché), pas un cube monde. */
-    findCase(x, y){
+    findCase(cx, cy){
         for(let i = 0; i < this.cases.length; i++)
-            if ( this.cases[i].x == x && this.cases[i].y == y)
+            if ( this.cases[i].x == cx && this.cases[i].y == cy)
                 return this.cases[i];
         return null;    
     }
     /** Monde → case visible, via le projecteur (même parallaxe que l'écran). */
-    findCaseLocation(x, y, z){
-        const c = this.#projector.caseFromLocation(x, y, z);
-        return this.findCase(c.x, c.y);
+    findCaseLocation(wx, wy, wz){
+        const casePoint = this.#projector.caseFromLocation(wx, wy, wz);
+        return this.findCase(casePoint.x, casePoint.y);
     }
     /** Habitants de la carte d'abord, puis les entités propres à cette vue. */
     findEntity(id){
@@ -476,9 +452,9 @@ export class MapView extends Control{
             if(entity != null) return entity;
         }
 
-        for( let ent = 0; ent < this.entities.length; ent++)
-            if( id == this.entities[ent].id )
-                return this.entities[ent];
+        for(let i = 0; i < this.entities.length; i++)
+            if(id === this.entities[i].id)
+                return this.entities[i];
     
         return null;
     }

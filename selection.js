@@ -65,39 +65,39 @@ export class Selection{
         const mapView = this.#mapView;
         const pointed = mapView.caseFromMouse();
         const c = pointed == null ? null : mapView.findCase(pointed.x, pointed.y);
-        let x = 0;
-        let y = 0;
-        let z = 0;
+        let wx = 0;
+        let wy = 0;
+        let wz = 0;
 
         if(c != null && c.cubes.length > 0){
             const top = c.cubes[c.cubes.length - 1];
-            x = top.x;
-            y = top.y;
-            z = top.z;
+            wx = top.x;
+            wy = top.y;
+            wz = top.z;
         } else {
-            x = mapView.location.x + mapView.casePoint.x;
-            y = mapView.location.y + mapView.casePoint.y;
-            z = mapView.location.z;
+            wx = mapView.location.x + mapView.casePoint.x;
+            wy = mapView.location.y + mapView.casePoint.y;
+            wz = mapView.location.z;
         }
 
         if(this.#selected.id !== "" && this.#selectedMouse.range > 0){
             const entity = this.selectedEntity();
             if(entity != null){
-                x = Selection.#clamp(x, entity.x, this.#selectedMouse.range);
-                y = Selection.#clamp(y, entity.y, this.#selectedMouse.range);
-                z = Selection.#clamp(z, entity.z, this.#selectedMouse.range);
+                wx = Selection.#clamp(wx, entity.x, this.#selectedMouse.range);
+                wy = Selection.#clamp(wy, entity.y, this.#selectedMouse.range);
+                wz = Selection.#clamp(wz, entity.z, this.#selectedMouse.range);
             }
         }
 
-        this.#selectedMouse.x = x;
-        this.#selectedMouse.y = y;
-        this.#selectedMouse.z = z;
+        this.#selectedMouse.x = wx;
+        this.#selectedMouse.y = wy;
+        this.#selectedMouse.z = wz;
 
         if(mapView.worldMap == null) return;
 
         this.#selectedMouse.target = "";
-        let target = this.#hitVolume(mapView.worldMap.players, x, y, z);
-        if(target == null) target = this.#hitVolume(mapView.mobiles(), x, y, z);
+        let target = this.#hitVolume(mapView.worldMap.players, wx, wy, wz);
+        if(target == null) target = this.#hitVolume(mapView.npcs(), wx, wy, wz);
 
         this.#selectedMouse.target = target != null ? target.id : this.#hitSprite(mapView.entityDraws);
     }
@@ -135,18 +135,18 @@ export class Selection{
      * Point 3D dans le volume d'une entité.
      * Délègue à Entity.contains.
      */
-    contains(entity, x, y, z){
+    contains(entity, wx, wy, wz){
         if(entity == null) return false;
-        if(typeof entity.contains === "function") return entity.contains(x, y, z);
+        if(typeof entity.contains === "function") return entity.contains(wx, wy, wz);
         return false;
     }
 
-    #hitVolume(list, x, y, z){
+    #hitVolume(list, wx, wy, wz){
         if(list == null) return null;
         let target = null;
         for(let i = 0; i < list.length; i++){
             const entity = list[i];
-            if(entity != null && entity.canTarget && this.contains(entity, x, y, z))
+            if(entity != null && entity.canTarget && this.contains(entity, wx, wy, wz))
                 target = entity;
         }
         return target;
@@ -154,12 +154,10 @@ export class Selection{
 
     #hitSprite(draws){
         const mouse = this.#mapView.mouseFromScreen();
-        const mx = mouse.x;
-        const my = mouse.y;
         for(let i = 0; i < draws.length; i++){
             const draw = draws[i];
-            if(draw.screen.x < mx && mx < draw.screen.x + draw.width
-                && draw.screen.y < my && my < draw.screen.y + draw.height)
+            if(draw.screen.x < mouse.x && mouse.x < draw.screen.x + draw.width
+                && draw.screen.y < mouse.y && mouse.y < draw.screen.y + draw.height)
                 return draw.id;
         }
         return "";

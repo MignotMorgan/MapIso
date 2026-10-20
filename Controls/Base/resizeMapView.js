@@ -17,6 +17,6 @@ export class ResizeMapView extends Resize{
         height = (width - control.Border.left - control.Border.right)/2;
         height += control.Border.top + control.Border.bottom;
         super.to(width, height);
-        control.modified();
+        control.invalidate();
     }
 }

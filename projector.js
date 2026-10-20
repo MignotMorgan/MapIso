@@ -5,7 +5,7 @@ import { Point, CasePoint } from './point.js';
  * Le projecteur isométrique 2:1.
  *
  * Il convertit entre trois repères :
- *   monde (x, y, z)  ↔  case caméra (cx, cy)  ↔  écran (px, py)
+ *   monde (wx, wy, wz)  ↔  case caméra (cx, cy)  ↔  écran (sx, sy)
  *
  * Il ne décide de rien : il lit la taille d'une case, le cadrage du
  * contrôle et la position de la caméra, puis applique les formules.
@@ -23,12 +23,12 @@ export class Projector{
 
     /**
      * Origine et taille du losange visible, dans le repère du formulaire.
-     * L'ajustement de revise décale le dessin sans bouger le contrôle.
+     * L'ajustement de panState décale le dessin sans bouger le contrôle.
      */
-    redress(){
+    origin(){
         const mapView = this.#mapView;
         const rect = mapView.Rectangle.rectangleBackground();
-        const adjustment = mapView.revise.adjustment;
+        const adjustment = mapView.panState.adjustment;
         return {
             x: rect.x + adjustment.x,
             y: rect.y + adjustment.y,
@@ -53,44 +53,39 @@ export class Projector{
         return this.caseFromScreen(mouse.x, mouse.y);
     }
 
-    caseFromScreen(x, y){
+    caseFromScreen(sx, sy){
         const sizeCase = this.#mapView.sizeCase;
-        const redressed = this.redress();
-        const c = new CasePoint();
+        const origin = this.origin();
+        const casePoint = new CasePoint();
 
-        x -= (redressed.x + sizeCase);
-        y -= redressed.y;
-        y -= (sizeCase / 2);
+        const percentX = ((sx - (origin.x + sizeCase)) / sizeCase) * 100;
+        const percentY = ((sy - origin.y - (sizeCase / 2)) / sizeCase) * 100;
+        const isoY = ((2 * percentY - percentX) / 2);
+        const isoX = (percentX + isoY);
 
-        x = ((x / sizeCase) * 100);
-        y = ((y / sizeCase) * 100);
-
-        const pY = ((2 * y - x) / 2);
-        const pX = (x + pY);
-
-        c.y = Math.round(pY / 100);
-        c.x = Math.round(pX / 100);
-        c.adjustment.x = Math.round(x - ((c.x - c.y) * 100));
-        c.adjustment.y = Math.round(y - ((c.x + c.y) * 50));
-        return c;
+        casePoint.y = Math.round(isoY / 100);
+        casePoint.x = Math.round(isoX / 100);
+        casePoint.adjustment.x = Math.round(percentX - ((casePoint.x - casePoint.y) * 100));
+        casePoint.adjustment.y = Math.round(percentY - ((casePoint.x + casePoint.y) * 50));
+        return casePoint;
     }
 
-    screenFromCase(x, y){
+    screenFromCase(cx, cy){
         const sizeCase = this.#mapView.sizeCase;
-        const redressed = this.redress();
-        return new Point(((x - y) * sizeCase) + redressed.x + sizeCase,
-                         ((x + y) * sizeCase / 2) + redressed.y);
+        const origin = this.origin();
+        return new Point(((cx - cy) * sizeCase) + origin.x + sizeCase,
+                         ((cx + cy) * sizeCase / 2) + origin.y);
     }
 
     /**
      * Monde → case caméra, avec la parallaxe d'altitude :
      * monter d'un cube recule d'une case en x et en y.
      */
-    caseFromLocation(x, y, z){
+    caseFromLocation(wx, wy, wz){
         const location = this.#mapView.location;
         return new CasePoint(
-            Math.round(x - location.x - (z - location.z)),
-            Math.round(y - location.y - (z - location.z))
+            Math.round(wx - location.x - (wz - location.z)),
+            Math.round(wy - location.y - (wz - location.z))
         );
     }
 
@@ -98,9 +93,9 @@ export class Projector{
      * Monde → écran. Même origine que screenFromCase : on passe par
      * caseFromLocation, pour n'avoir qu'une seule formule de losange.
      */
-    screenFromLocation(x, y, z){
-        const c = this.caseFromLocation(x, y, z);
-        const p = this.screenFromCase(c.x, c.y);
-        return new Point(parseInt(p.x), parseInt(p.y));
+    screenFromLocation(wx, wy, wz){
+        const casePoint = this.caseFromLocation(wx, wy, wz);
+        const screen = this.screenFromCase(casePoint.x, casePoint.y);
+        return new Point(parseInt(screen.x), parseInt(screen.y));
     }
 }

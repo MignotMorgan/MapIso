@@ -8,7 +8,7 @@ import { EntityMove, Direction } from './entityMove.js';
  * Position (x,y,z) : coin supérieur-droit-arrière du volume.
  * Le volume va vers x/y décroissants et z croissant : base width×width, hauteur height.
  *
- * Le constructeur lit le JSON camelCase (id, canMove, bodyStand…).
+ * Le constructeur lit le JSON camelCase (id, canMove, spriteStand…).
  */
 export class Entity{
     #id = "";
@@ -19,10 +19,10 @@ export class Entity{
     #direction = Direction.NONE;
     #canMove = false;
     #canTarget = false;
-    #cross = false;            // d'autres entités peuvent traverser ce volume
-    #body = null;              // sprite / animation courante
-    #bodyStand = null;         // sprite idle, repris quand l'anim se termine
-    #bodyAnimated = false;
+    #walkable = false;         // d'autres entités peuvent traverser ce volume
+    #sprite = null;            // sprite / animation courante
+    #spriteStand = null;       // sprite idle, repris quand l'anim se termine
+    #spriteAnimated = false;
     #worldMap = null;          // carte d'appartenance (pathfinding, collisions)
     #entityMove = null;
 
@@ -36,10 +36,10 @@ export class Entity{
         this.#direction = options.direction ?? Direction.NONE;
         this.#canMove = options.canMove ?? false;
         this.#canTarget = options.canTarget ?? false;
-        this.#cross = options.cross ?? false;
-        this.#body = options.body ?? null;
-        this.#bodyStand = options.bodyStand ?? null;
-        this.#bodyAnimated = options.bodyAnimated ?? false;
+        this.#walkable = options.walkable ?? false;
+        this.#sprite = options.sprite ?? null;
+        this.#spriteStand = options.spriteStand ?? null;
+        this.#spriteAnimated = options.spriteAnimated ?? false;
         this.#worldMap = options.worldMap ?? null;
         this.#entityMove = EntityMove.from(options.entityMove);
         // Une entité qui peut marcher a forcément besoin de son carnet de route :
@@ -71,14 +71,14 @@ export class Entity{
     }
     get canTarget(){ return this.#canTarget; }
     set canTarget(value){ this.#canTarget = !!value; }
-    get cross(){ return this.#cross; }
-    set cross(value){ this.#cross = !!value; }
-    get body(){ return this.#body; }
-    set body(value){ this.#body = value ?? null; }
-    get bodyStand(){ return this.#bodyStand; }
-    set bodyStand(value){ this.#bodyStand = value ?? null; }
-    get bodyAnimated(){ return this.#bodyAnimated; }
-    set bodyAnimated(value){ this.#bodyAnimated = !!value; }
+    get walkable(){ return this.#walkable; }
+    set walkable(value){ this.#walkable = !!value; }
+    get sprite(){ return this.#sprite; }
+    set sprite(value){ this.#sprite = value ?? null; }
+    get spriteStand(){ return this.#spriteStand; }
+    set spriteStand(value){ this.#spriteStand = value ?? null; }
+    get spriteAnimated(){ return this.#spriteAnimated; }
+    set spriteAnimated(value){ this.#spriteAnimated = !!value; }
     get worldMap(){ return this.#worldMap; }
     set worldMap(value){ this.#worldMap = value ?? null; }
     get entityMove(){ return this.#entityMove; }
@@ -101,7 +101,7 @@ export class Entity{
     tick(elapsed){
         if(this.#entityMove == null) return false;
         const changed = this.#entityMove.progress(elapsed, this);
-        if(!this.walking) this.#bodyAnimated = false;
+        if(!this.walking) this.#spriteAnimated = false;
         return changed;
     }
 
@@ -110,13 +110,13 @@ export class Entity{
         if(this.#entityMove == null) return;
         this.#location.copy(this.#entityMove.destination);
         this.#entityMove.clear();
-        this.#bodyAnimated = false;
+        this.#spriteAnimated = false;
     }
 
     /** Lance l'entité sur un trajet déjà calculé, depuis le début. */
-    walk(street){
-        if(this.#entityMove == null || !this.#entityMove.start(street)) return false;
-        this.#bodyAnimated = true;
+    walk(path){
+        if(this.#entityMove == null || !this.#entityMove.start(path)) return false;
+        this.#spriteAnimated = true;
         return true;
     }
 
@@ -124,11 +124,11 @@ export class Entity{
      * Collision point ↔ volume 3D.
      * Utilisé pour savoir si un clic / un cube vise cette entité.
      */
-    contains(x, y, z){
+    contains(wx, wy, wz){
         const location = this.#location;
-        return (x <= location.x) && (x > location.x - this.#width)
-            && (y <= location.y) && (y > location.y - this.#width)
-            && (z >= location.z) && (z < location.z + this.#height);
+        return (wx <= location.x) && (wx > location.x - this.#width)
+            && (wy <= location.y) && (wy > location.y - this.#width)
+            && (wz >= location.z) && (wz < location.z + this.#height);
     }
 
     /**
@@ -147,10 +147,10 @@ export class Entity{
             direction: this.#direction,
             canMove: this.#canMove,
             canTarget: this.#canTarget,
-            cross: this.#cross,
-            body: this.#body,
-            bodyStand: this.#bodyStand,
-            bodyAnimated: this.#bodyAnimated,
+            walkable: this.#walkable,
+            sprite: this.#sprite,
+            spriteStand: this.#spriteStand,
+            spriteAnimated: this.#spriteAnimated,
             entityMove: this.#entityMove
         };
     }

@@ -21,12 +21,12 @@ export class Direction{
     static SOUTH_WEST = 7;
 
     /** Vers où se tourner pour aller d'une case à une autre. */
-    static between(x, y, xDest, yDest){
-        if(x == xDest && y == yDest) return Direction.NONE;
-        if(x == xDest) return y > yDest ? Direction.NORTH : Direction.SOUTH;
-        if(y == yDest) return x < xDest ? Direction.EAST : Direction.WEST;
-        if(x > xDest) return y > yDest ? Direction.NORTH_WEST : Direction.SOUTH_WEST;
-        return y > yDest ? Direction.NORTH_EAST : Direction.SOUTH_EAST;
+    static between(wx, wy, wxTo, wyTo){
+        if(wx == wxTo && wy == wyTo) return Direction.NONE;
+        if(wx == wxTo) return wy > wyTo ? Direction.NORTH : Direction.SOUTH;
+        if(wy == wyTo) return wx < wxTo ? Direction.EAST : Direction.WEST;
+        if(wx > wxTo) return wy > wyTo ? Direction.NORTH_WEST : Direction.SOUTH_WEST;
+        return wy > wyTo ? Direction.NORTH_EAST : Direction.SOUTH_EAST;
     }
 }
 
@@ -73,11 +73,11 @@ export class Stride{
     at(){
         const from = this.#from;
         const to = this.#to;
-        const r = this.#ratio;
+        const ratio = this.#ratio;
         return new Location(
-            from.x + (to.x - from.x) * r,
-            from.y + (to.y - from.y) * r,
-            from.z + (to.z - from.z) * r
+            from.x + (to.x - from.x) * ratio,
+            from.y + (to.y - from.y) * ratio,
+            from.z + (to.z - from.z) * ratio
         );
     }
 }
@@ -86,7 +86,7 @@ export class Stride{
  * Le carnet de route d'une entité : le trajet qu'elle suit, à quelle allure,
  * et où elle en est.
  *
- * street : les cases traversées, du départ à l'arrivée.
+ * path : les cases traversées, du départ à l'arrivée.
  * speed  : durée d'un pas d'une case, en millisecondes.
  * index  : le pas en cours, 0 étant le premier.
  * step   : millisecondes déjà écoulées dans ce pas-là.
@@ -97,52 +97,52 @@ export class Stride{
 export class EntityMove{
 
     #id = 0;
-    #street = [];
+    #path = [];
     #speed = 400;
     #index = 0;
     #step = 0;
-    #body = null;
+    #sprite = null;
     #adjustment = null;
 
     constructor(options = {}){
         this.#id = options.id ?? 0;
-        this.street = options.street ?? [];
+        this.path = options.path ?? [];
         this.#speed = options.speed ?? 400;
         this.#index = options.index ?? 0;
         this.#step = options.step ?? 0;
-        this.#body = options.body ?? null;
+        this.#sprite = options.sprite ?? null;
         this.#adjustment = Point.from(options.adjustment);
     }
 
     get id(){ return this.#id; }
     set id(value){ this.#id = value ?? 0; }
-    get street(){ return this.#street; }
-    set street(value){ this.#street = (value ?? []).map(point => Location.from(point)); }
+    get path(){ return this.#path; }
+    set path(value){ this.#path = (value ?? []).map(point => Location.from(point)); }
     get speed(){ return this.#speed; }
     set speed(value){ this.#speed = value ?? 0; }
     get index(){ return this.#index; }
     get step(){ return this.#step; }
-    get body(){ return this.#body; }
-    set body(value){ this.#body = value ?? null; }
+    get sprite(){ return this.#sprite; }
+    set sprite(value){ this.#sprite = value ?? null; }
     get adjustment(){ return this.#adjustment; }
 
     /** Y a-t-il un trajet en cours ? Un trajet d'une seule case n'en est pas un. */
-    get walking(){ return this.#street.length > 1 && this.#speed > 0; }
+    get walking(){ return this.#path.length > 1 && this.#speed > 0; }
     /** La dernière case du trajet, ou null si le carnet est vide. */
     get destination(){
-        return this.#street.length === 0 ? null : this.#street[this.#street.length - 1];
+        return this.#path.length === 0 ? null : this.#path[this.#path.length - 1];
     }
 
     /** Prend un nouveau trajet, depuis le début. Renvoie false s'il n'y a rien à parcourir. */
-    start(street){
-        this.street = street;
+    start(path){
+        this.path = path;
         this.#index = 0;
         this.#step = 0;
         return this.walking;
     }
     /** Range le carnet : plus de trajet en cours. */
     clear(){
-        this.#street = [];
+        this.#path = [];
         this.#index = 0;
         this.#step = 0;
     }
@@ -154,17 +154,17 @@ export class EntityMove{
      * visiblement dès qu'il marche en biais.
      */
     duration(index){
-        if(index < 0 || index >= this.#street.length - 1) return 0;
-        return this.#speed * Math.max(1, this.#street[index].ground(this.#street[index + 1]));
+        if(index < 0 || index >= this.#path.length - 1) return 0;
+        return this.#speed * Math.max(1, this.#path[index].ground(this.#path[index + 1]));
     }
 
     /** Le pas en cours, ou null si le trajet est fini ou inexistant. */
     stride(){
         if(!this.walking) return null;
-        if(this.#index >= this.#street.length - 1) return null;
+        if(this.#index >= this.#path.length - 1) return null;
         const duration = this.duration(this.#index);
-        return new Stride(this.#street[this.#index],
-                          this.#street[this.#index + 1],
+        return new Stride(this.#path[this.#index],
+                          this.#path[this.#index + 1],
                           duration <= 0 ? 0 : this.#step / duration);
     }
 
@@ -187,7 +187,7 @@ export class EntityMove{
             duration = this.duration(this.#index);
         }
 
-        if(this.#index >= this.#street.length - 1){
+        if(this.#index >= this.#path.length - 1){
             if(entity != null && this.destination != null)
                 entity.location.copy(this.destination);
             this.clear();
@@ -210,11 +210,11 @@ export class EntityMove{
     toJSON(){
         return {
             id: this.#id,
-            street: this.#street,
+            path: this.#path,
             speed: this.#speed,
             index: this.#index,
             step: this.#step,
-            body: this.#body,
+            sprite: this.#sprite,
             adjustment: this.#adjustment
         };
     }

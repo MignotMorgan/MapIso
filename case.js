@@ -28,7 +28,7 @@ export class Case {
     /** Premier cube traversable en partant du haut de la colonne : le sol cliquable. */
     floor(){
         for(let i = this.#cubes.length-1; i >=  0; i--)
-            if(this.#cubes[i].cross)
+            if(this.#cubes[i].walkable)
                 return this.#cubes[i];
         return null;
     }

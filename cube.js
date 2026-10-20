@@ -7,7 +7,7 @@ export class Cube{
     #volumes = [];
     #floorsSpeed = 0;
     #volumesSpeed = 0;
-    #cross = false;
+    #walkable = false;
 
     constructor(x, y, z, options = {}){
         this.#x = x;
@@ -18,7 +18,7 @@ export class Cube{
         this.#volumes = options.volumes ?? [];
         this.#floorsSpeed = options.floorsSpeed ?? 0;
         this.#volumesSpeed = options.volumesSpeed ?? 0;
-        this.#cross = options.cross ?? false;
+        this.#walkable = options.walkable ?? false;
     }
 
     get x(){ return this.#x; }
@@ -32,8 +32,8 @@ export class Cube{
     set floorsSpeed(value){ this.#floorsSpeed = value ?? 0; }
     get volumesSpeed(){ return this.#volumesSpeed; }
     set volumesSpeed(value){ this.#volumesSpeed = value ?? 0; }
-    get cross(){ return this.#cross; }
-    set cross(value){ this.#cross = !!value; }
+    get walkable(){ return this.#walkable; }
+    set walkable(value){ this.#walkable = !!value; }
 
     /** Les champs privés sont invisibles pour JSON.stringify : on les expose ici. */
     toJSON(){
@@ -45,7 +45,7 @@ export class Cube{
             volumes: this.#volumes,
             floorsSpeed: this.#floorsSpeed,
             volumesSpeed: this.#volumesSpeed,
-            cross: this.#cross
+            walkable: this.#walkable
         };
     }
 }

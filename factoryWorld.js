@@ -7,9 +7,9 @@ import { WorldMap } from './worldMap.js';
 export class FactoryWorld{
     constructor(){}
     createCase(x, y){ return new Case(x, y); }
-    /** options : floors, volumes, cross… */
+    /** options : floors, volumes, walkable… */
     createCube(x, y, z, options){ return new Cube(x, y, z, options); }
-    /** options : id, width, canMove, body… */
+    /** options : id, width, canMove, sprite… */
     createEntity(x, y, z, options){ return new Entity(x, y, z, options); }
     /** Carte vide aux dimensions données. options : name, cubes, players, entities, noCeilingZones. */
     createWorldMap(width, height, depth, options){ return new WorldMap(width, height, depth, options); }
