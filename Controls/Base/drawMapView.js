@@ -48,13 +48,13 @@ export class DrawMapView extends Draw {
      * un mur devant cache ce qui est derrière au même z.
      */
     drawMap(){
-        const control = this.control;
-        if(control.worldMap == null) return;
+        const mapview = this.control;
+        if(mapview.worldMap == null) return;
 
         const paint = this.Paint;
-        const sizeCase = control.sizeCase;
-        const cases = control.cases;
-        const maxZ = control.maxZ;
+        const sizeCase = mapview.sizeCase;
+        const cases = mapview.cases;
+        const maxZ = mapview.maxZ;
 
         for(let z = 0; z <= maxZ; z++){
             for(let i = 0; i < cases.length; i++){
@@ -139,41 +139,41 @@ export class DrawMapView extends Draw {
      */
     drawGrid(){
         const paint = this.Paint;
-        const control = this.control;
+        const mapview = this.control;
         const pad = 2;
-        const last = control.caseCount - 1;
-        const maxCases = (control.caseCount * 2) - 1 + pad;
+        const last = mapview.caseCount - 1;
+        const maxCases = (mapview.caseCount * 2) - 1 + pad;
         const color = "#043296ff";
         const lineWidth = 2;
 
         for(let x = 0; x <= last + pad; x++){
-            let from = control.screenFromCase(x - pad, 0 - x);
-            let to = control.screenFromCase(maxCases - x, 0 - x);
+            let from = mapview.screenFromCase(x - pad, 0 - x);
+            let to = mapview.screenFromCase(maxCases - x, 0 - x);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
 
-            from = control.screenFromCase(x - pad, x + 1);
-            to = control.screenFromCase(maxCases - x, x + 1);
+            from = mapview.screenFromCase(x - pad, x + 1);
+            to = mapview.screenFromCase(maxCases - x, x + 1);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
 
-            from = control.screenFromCase(x - pad, 0 - x);
-            to = control.screenFromCase(x - pad, x + 1);
+            from = mapview.screenFromCase(x - pad, 0 - x);
+            to = mapview.screenFromCase(x - pad, x + 1);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
 
-            from = control.screenFromCase(last + x + 1, 0 - (last + pad - x));
-            to = control.screenFromCase(last + x + 1, last + pad + 1 - x);
+            from = mapview.screenFromCase(last + x + 1, 0 - (last + pad - x));
+            to = mapview.screenFromCase(last + x + 1, last + pad + 1 - x);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
         }
     }
     drawCaseNumbers(){
-        const control = this.control;
+        const mapview = this.control;
         const paint = this.Paint;
-        const sizeCase = control.sizeCase;
-        const maxCases = (control.caseCount*2);
+        const sizeCase = mapview.sizeCase;
+        const maxCases = (mapview.caseCount*2);
         const font = { family: "Arial", size: 10, style: "bold", color: "#000" };
         
         for(let x = -maxCases; x <= maxCases; x++){
             for(let y = -maxCases; y <= maxCases; y++){
-                const screen = control.screenFromCase(x, y);
+                const screen = mapview.screenFromCase(x, y);
                 const manhattan = Math.abs(x)+Math.abs(y);
                 if(x - y >= -2 && x + y >= -2 && manhattan <= maxCases){
                     paint.drawText(screen.x-sizeCase/4, screen.y+sizeCase/2, `${x},${y}`, font);
@@ -188,12 +188,12 @@ export class DrawMapView extends Draw {
      * conversions par image.
      */
     drawHover(cx, cy){
-        const control = this.control;
+        const mapview = this.control;
         const paint = this.Paint;
-        const sizeCase = control.sizeCase;
+        const sizeCase = mapview.sizeCase;
 
-        const c = control.findCase(cx, cy);
-        const screen = c != null ? c.screen : control.screenFromCase(cx, cy);
+        const c = mapview.findCase(cx, cy);
+        const screen = c != null ? c.screen : mapview.screenFromCase(cx, cy);
 
         paint.withAlpha(0.35, () => paint.fillLosange(screen.x, screen.y, sizeCase, "#ff0000"));
         paint.strokeLosange(screen.x, screen.y, sizeCase, "#ff0000", 2);

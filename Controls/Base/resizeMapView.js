@@ -13,10 +13,10 @@ export class ResizeMapView extends Resize{
     }
 
     to(width, height = width){
-        const control = this.control;
-        height = (width - control.Border.left - control.Border.right)/2;
-        height += control.Border.top + control.Border.bottom;
+        const mapview = this.control;
+        height = (width - mapview.Border.left - mapview.Border.right)/2;
+        height += mapview.Border.top + mapview.Border.bottom;
         super.to(width, height);
-        control.invalidate();
+        mapview.invalidate();
     }
 }

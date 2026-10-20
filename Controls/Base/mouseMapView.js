@@ -13,9 +13,9 @@ export class MouseMapView extends Mouse{
 
     hover(){
         super.hover();
-        const control = this.control;
-        if(Core.mousehover.control !== control)return;
-        control.casePoint = control.caseFromMouse();
+        const mapview = this.control;
+        if(Core.mousehover.control !== mapview)return;
+        mapview.casePoint = mapview.caseFromMouse();
     }
 
     /**
@@ -25,30 +25,30 @@ export class MouseMapView extends Mouse{
      */
     clickLeft(){
         super.clickLeft();
-        const control = this.control;
-        control.casePoint = control.caseFromMouse();
-        control.onTarget();
+        const mapview = this.control;
+        mapview.casePoint = mapview.caseFromMouse();
+        mapview.onTarget();
 
-        if(control.target.id !== "") control.select(control.target.id);
-        else control.moveSelectedTo(control.target.cube);
+        if(mapview.target.id !== "") mapview.select(mapview.target.id);
+        else mapview.moveSelectedTo(mapview.target.cube);
     }
 
     /** Clic milieu : on saisit la carte. Le suivi caméra s'arrête. */
     clickMiddle(){
-        const control = this.control;
-        control.following = false;
-        const mouse = control.mouseFromScreen();
+        const mapview = this.control;
+        mapview.following = false;
+        const mouse = mapview.mouseFromScreen();
         this.#panFrom.set(mouse.x, mouse.y);
     }
     dragMiddle(){
-        const control = this.control;
-        const mouse = control.mouseFromScreen();
-        control.pan(mouse.x - this.#panFrom.x, mouse.y - this.#panFrom.y);
+        const mapview = this.control;
+        const mouse = mapview.mouseFromScreen();
+        mapview.pan(mouse.x - this.#panFrom.x, mouse.y - this.#panFrom.y);
         this.#panFrom.set(mouse.x, mouse.y);
     }
 
     wheel(deltaX, deltaY){
-        const control = this.control;
-        control.caseCount = deltaY < 0 ? control.caseCount -= 1 : control.caseCount += 1;
+        const mapview = this.control;
+        mapview.caseCount = deltaY < 0 ? mapview.caseCount -= 1 : mapview.caseCount += 1;
     }
 }
