@@ -19,8 +19,8 @@ export class MapView extends Control{
     #entityDraws = [];
     //playerDraws : vues écran des joueurs
     #playerDraws = [];
-    //noCeilingZones : Tableau des zones sans plafond pour la visibilité
-    #noCeilingZones = [];
+    //openRooms : pièces dont la vue a levé le toit
+    #openRooms = [];
     //createCubes : Flag indiquant qu'il faut traiter de nouveaux cubes
     #createCubes = false;
     //rebuildEntityDraws : il faut recréer les EntityDraw (carte, zoom, sprites)
@@ -81,7 +81,7 @@ export class MapView extends Control{
             if(selectedId !== "")
                 for(let i = 0; i < moved.length; i++)
                     if(moved[i].id === selectedId){
-                        this.noCeilingFromSelected();
+                        this.openRoomsFromSelected();
                         break;
                     }
         }
@@ -210,14 +210,14 @@ export class MapView extends Control{
     /** Brancher une carte suffit : la vue se remplit toute seule au tour suivant. */
     set worldMap(value){
         this.#worldMap = value ?? null;
-        this.#noCeilingZones = [];
+        this.#openRooms = [];
         this.#createCubes = true;
         this.#rebuildEntityDraws = true;
     }
     get entities(){ return this.#entities; }
     get entityDraws(){ return this.#entityDraws; }
     get playerDraws(){ return this.#playerDraws; }
-    get noCeilingZones(){ return this.#noCeilingZones; }
+    get openRooms(){ return this.#openRooms; }
     get createCubes(){ return this.#createCubes; }
     get rebuildEntityDraws(){ return this.#rebuildEntityDraws; }
 
@@ -401,20 +401,20 @@ export class MapView extends Control{
      * Recalcule les pièces dont il faut masquer le plafond, d'après l'entité
      * sélectionnée. Aucune sélection = on remet tous les plafonds.
      */
-    noCeilingFromSelected(){
+    openRoomsFromSelected(){
         const entity = this.selectedEntity();
-        if(entity === null) this.#noCeilingZones = [];
-        else this.noCeilingFrom(entity.x, entity.y, entity.z);
+        if(entity === null) this.#openRooms = [];
+        else this.openRoomsFrom(entity.x, entity.y, entity.z);
     }
     /** Pièces contenant ce point : c'est la carte qui sait, on lui demande. */
-    noCeilingFrom(wx, wy, wz){
-        this.#noCeilingZones = this.worldMap === null ? [] : this.worldMap.zonesAt(wx, wy, wz);
+    openRoomsFrom(wx, wy, wz){
+        this.#openRooms = this.worldMap === null ? [] : this.worldMap.roomsAt(wx, wy, wz);
         this.#createCubes = true;
     }
-    /** Ce cube fait-il partie d'un plafond à masquer ? hideWalls décide du sort des murs. */
+    /** Ce cube fait-il partie d'un plafond à masquer ? hideWalls (inset) décide du sort des murs. */
     hidesCeiling(wx, wy, wz){
-        for(let i = 0; i < this.#noCeilingZones.length; i++)
-            if(this.#noCeilingZones[i].hides(wx, wy, wz, this.#hideWalls)) return true;
+        for(let i = 0; i < this.#openRooms.length; i++)
+            if(this.#openRooms[i].hides(wx, wy, wz, this.#hideWalls)) return true;
         return false;
     }
     /**

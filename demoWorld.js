@@ -82,7 +82,7 @@ export class DemoWorld{
 
     /**
      * Une maison : quatre murs percés d'une porte, un toit un étage plus haut.
-     * La zone sans plafond déclarée à la fin fera disparaître ce toit dès qu'un
+     * La pièce déclarée à la fin fera disparaître ce toit dès qu'un
      * personnage sélectionné se trouvera à l'intérieur.
      */
     house(worldMap){
@@ -96,7 +96,7 @@ export class DemoWorld{
                 worldMap.setCube(x, y, 1, { walkable:false, floors:["toit"] });
             }
 
-        worldMap.addNoCeilingZone(left, top, 0, right - left, bottom - top, 2);
+        worldMap.addRoom(left, top, 0, right - left + 1, bottom - top + 1, 2);
     }
 
     trees(worldMap){

@@ -33,7 +33,7 @@ export class Selection{
     /** Choisit une entité. La vue met à jour les plafonds à masquer. */
     select(id){
         this.#selected.id = id ?? "";
-        this.#mapView.noCeilingFromSelected();
+        this.#mapView.openRoomsFromSelected();
         return this.selectedEntity();
     }
 
