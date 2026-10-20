@@ -20,7 +20,7 @@ export class PathNode{
         this.#y = y;
         this.#z = z;
         this.#parent = parent;
-        this.#distance = parent == null ? 0 : parent.distance + 1;
+        this.#distance = parent === null ? 0 : parent.distance + 1;
     }
 
     get x(){ return this.#x; }
@@ -34,7 +34,7 @@ export class PathNode{
     path(){
         const path = [];
         let node = this;
-        while(node != null){
+        while(node !== null){
             path[path.length] = new Location(node.x, node.y, node.z);
             node = node.parent;
         }
@@ -96,7 +96,7 @@ export class Pathfinding{
 
     /** Cube du monde. On demande à la carte, on ne fouille jamais sa grille nous-même. */
     findCube(wx, wy, wz){
-        if(this.#worldMap == null) return null;
+        if(this.#worldMap === null) return null;
         return this.#worldMap.cubeAt(wx, wy, wz);
     }
 
@@ -113,12 +113,12 @@ export class Pathfinding{
         this.#pathNodes = [];
         this.#visited = new Set();
 
-        if(entity != null && !entity.canMove) return null;
+        if(entity !== null && !entity.canMove) return null;
 
         const start = new PathNode(this.#x, this.#y, this.#z);
         this.#pathNodes[0] = start;
         this.#visited.add(Pathfinding.#key(start.x, start.y, start.z));
-        if(start.x == wx && start.y == wy && start.z == wz) return start;
+        if(start.x === wx && start.y === wy && start.z === wz) return start;
 
         const offsets = Pathfinding.offsets();
 
@@ -140,11 +140,11 @@ export class Pathfinding{
                 if(this.#visited.has(key)) continue;
 
                 const cube = this.findCube(nx, ny, nz);
-                if(cube == null || !cube.walkable) continue;
+                if(cube === null || !cube.walkable) continue;
 
                 // Changement d'étage ou diagonale : on frôle des cases voisines,
                 // il faut vérifier qu'elles laissent passer.
-                if(offset.z != 0 || (offset.x != 0 && offset.y != 0)){
+                if(offset.z !== 0 || (offset.x !== 0 && offset.y !== 0)){
                     const corner = new Corner(node.x, node.y, node.z, offset, (wx, wy, wz) => this.findCube(wx, wy, wz));
                     if(!corner.canPass()) continue;
                 }
@@ -153,7 +153,7 @@ export class Pathfinding{
                 const next = new PathNode(cube.x, cube.y, cube.z, node);
                 this.#pathNodes[this.#pathNodes.length] = next;
 
-                if(next.x == wx && next.y == wy && next.z == wz) return next;
+                if(next.x === wx && next.y === wy && next.z === wz) return next;
                 if(this.#pathNodes.length >= this.#maxNodes) return null;
             }
         }
@@ -167,7 +167,7 @@ export class Pathfinding{
      */
     find(wx, wy, wz, entity = null){
         const node = this.search(wx, wy, wz, entity);
-        if(node == null) return [new Location(wx, wy, wz)];
+        if(node === null) return [new Location(wx, wy, wz)];
         return node.path();
     }
 
@@ -177,12 +177,12 @@ export class Pathfinding{
      * dans ce cas rien n'est modifié, l'entité reste sur place.
      */
     moveTo(entity, wx, wy, wz){
-        if(entity == null) return false;
+        if(entity === null) return false;
         if(!entity.canMove) return false;
-        if(entity.entityMove == null) return false;   // pas de buffer de déplacement
+        if(entity.entityMove === null) return false;   // pas de buffer de déplacement
 
         const node = this.search(wx, wy, wz, entity);
-        if(node == null) return false;
+        if(node === null) return false;
 
         return entity.walk(node.path());
     }
@@ -193,7 +193,7 @@ export class Pathfinding{
         const offsets = [];
         for(let n = 1; n < 27; n++){
             const offset = Pathfinding.offset(n);
-            if(offset.x == 0 && offset.y == 0 && offset.z == 0) continue;
+            if(offset.x === 0 && offset.y === 0 && offset.z === 0) continue;
             offsets[offsets.length] = offset;
         }
         this.#offsets = offsets;
@@ -267,7 +267,7 @@ export class Corner{
     get head(){ return this.#head; }
 
     /** Un cube présent et non franchissable barre la route ; le vide non. */
-    static blocked(cube){ return cube != null && !cube.walkable; }
+    static blocked(cube){ return cube !== null && !cube.walkable; }
 
     canPass(){
         // La case qu'on traverse en chemin.

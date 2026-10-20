@@ -40,7 +40,7 @@ export class Texture{
     get faces(){ return this.#faces; }
     /** L'image est-elle téléchargée ? Une couleur est toujours prête. */
     get ready(){
-        if(this.#image == null) return true;
+        if(this.#image === null) return true;
         return this.#image.complete && this.#image.naturalWidth > 0;
     }
 
@@ -50,7 +50,7 @@ export class Texture{
      * hauteur width/2) et le reste de la hauteur devient le corps du volume.
      */
     draw(paint, x, y, width, height){
-        if(this.#image != null){
+        if(this.#image !== null){
             paint.drawImage(this.#image, x, y, width, height);
             return;
         }
@@ -92,17 +92,17 @@ export class Texture{
 
     // Accepte #rgb, #rrggbb et #rrggbbaa. Toute autre écriture est renvoyée telle quelle.
     static #toRgb(color){
-        if(typeof color != "string") return null;
+        if(typeof color !== "string") return null;
         let hex = color.trim();
-        if(hex[0] != "#") return null;
+        if(hex[0] !== "#") return null;
         hex = hex.slice(1);
-        if(hex.length == 3) hex = hex[0]+hex[0] + hex[1]+hex[1] + hex[2]+hex[2];
-        if(hex.length != 6 && hex.length != 8) return null;
+        if(hex.length === 3) hex = hex[0]+hex[0] + hex[1]+hex[1] + hex[2]+hex[2];
+        if(hex.length !== 6 && hex.length !== 8) return null;
         return {
             r: parseInt(hex.slice(0, 2), 16),
             g: parseInt(hex.slice(2, 4), 16),
             b: parseInt(hex.slice(4, 6), 16),
-            a: hex.length == 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1
+            a: hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1
         };
     }
 }
@@ -127,14 +127,14 @@ export class Textures{
         return Textures.add(new Texture(name, {url:url}));
     }
     static add(texture){
-        if(texture == null) return null;
+        if(texture === null) return null;
         Textures.#textures.set(texture.name, texture);
         return texture;
     }
     /** null si le nom est inconnu : l'affichage saute simplement cette couche. */
     static get(name){
         if(name == null) return null;
-        if(typeof name != "string") return Textures.#textures.get(name.name) ?? null;
+        if(typeof name !== "string") return Textures.#textures.get(name.name) ?? null;
         return Textures.#textures.get(name) ?? null;
     }
     static has(name){ return Textures.#textures.has(name); }

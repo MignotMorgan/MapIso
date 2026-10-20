@@ -40,9 +40,9 @@ export class Selection{
     /** Intention « aller ici » : la carte pathfind, pas la vue. */
     moveSelectedTo(cube){
         const mapView = this.#mapView;
-        if(cube == null || mapView.worldMap == null) return false;
+        if(cube === null || mapView.worldMap === null) return false;
         const entity = this.selectedEntity();
-        if(entity == null) return false;
+        if(entity === null) return false;
         return mapView.worldMap.goTo(entity.id, cube.x, cube.y, cube.z);
     }
 
@@ -53,7 +53,7 @@ export class Selection{
         const mapView = this.#mapView;
         const c = mapView.findCase(mapView.casePoint.x, mapView.casePoint.y);
         this.#target.case = c;
-        this.#target.cube = c != null ? c.floor() : null;
+        this.#target.cube = c !== null ? c.floor() : null;
         this.#target.id = this.#hitSprite(mapView.playerDraws.concat(mapView.entityDraws));
     }
 
@@ -64,12 +64,12 @@ export class Selection{
     onSelectedMouse(){
         const mapView = this.#mapView;
         const pointed = mapView.caseFromMouse();
-        const c = pointed == null ? null : mapView.findCase(pointed.x, pointed.y);
+        const c = pointed === null ? null : mapView.findCase(pointed.x, pointed.y);
         let wx = 0;
         let wy = 0;
         let wz = 0;
 
-        if(c != null && c.cubes.length > 0){
+        if(c !== null && c.cubes.length > 0){
             const top = c.cubes[c.cubes.length - 1];
             wx = top.x;
             wy = top.y;
@@ -82,7 +82,7 @@ export class Selection{
 
         if(this.#selected.id !== "" && this.#selectedMouse.range > 0){
             const entity = this.selectedEntity();
-            if(entity != null){
+            if(entity !== null){
                 wx = Selection.#clamp(wx, entity.x, this.#selectedMouse.range);
                 wy = Selection.#clamp(wy, entity.y, this.#selectedMouse.range);
                 wz = Selection.#clamp(wz, entity.z, this.#selectedMouse.range);
@@ -93,13 +93,13 @@ export class Selection{
         this.#selectedMouse.y = wy;
         this.#selectedMouse.z = wz;
 
-        if(mapView.worldMap == null) return;
+        if(mapView.worldMap === null) return;
 
         this.#selectedMouse.target = "";
         let target = this.#hitVolume(mapView.worldMap.players, wx, wy, wz);
-        if(target == null) target = this.#hitVolume(mapView.npcs(), wx, wy, wz);
+        if(target === null) target = this.#hitVolume(mapView.npcs(), wx, wy, wz);
 
-        this.#selectedMouse.target = target != null ? target.id : this.#hitSprite(mapView.entityDraws);
+        this.#selectedMouse.target = target !== null ? target.id : this.#hitSprite(mapView.entityDraws);
     }
 
     selectedMultiDown(){

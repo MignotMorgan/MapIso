@@ -75,7 +75,7 @@ export class MapView extends Control{
         if(this.#modified)
             this.rebuild();
 
-        if(this.#worldMap != null){
+        if(this.#worldMap !== null){
             const moved = this.#worldMap.tick();
             const selectedId = this.selected.id;
             if(selectedId !== "")
@@ -136,9 +136,9 @@ export class MapView extends Control{
     /** Caméra sur l'entité choisie : le sprite interpolé, pas la case logique. */
     followSelected(){
         const entity = this.selectedEntity();
-        if(entity == null) return;
+        if(entity === null) return;
         const stride = entity.stride();
-        const screen = stride == null
+        const screen = stride === null
             ? this.screenFromLocation(entity.x, entity.y, entity.z)
             : stride.between(
                 this.screenFromLocation(stride.from.x, stride.from.y, stride.from.z),
@@ -298,7 +298,7 @@ export class MapView extends Control{
      */
     createCubes()
     {
-        if(this.worldMap == null) return;
+        if(this.worldMap === null) return;
         for(let i = 0; i < this.cases.length; i++)
         {
             const c = this.cases[i];
@@ -310,7 +310,7 @@ export class MapView extends Control{
             for (let z = 0; z <= this.maxZ; z++)
             {
                 cube = this.findCube(wx + z, wy + z, z);
-                if(cube != null && !this.hidesCeiling(cube.x, cube.y, cube.z))
+                if(cube !== null && !this.hidesCeiling(cube.x, cube.y, cube.z))
                         c.cubes[c.cubes.length] = cube;
             }
 
@@ -319,7 +319,7 @@ export class MapView extends Control{
 
     /** PNJ et objets : ceux de la carte, plus ceux propres à cette vue. */
     npcs(){
-        const npcs = this.worldMap == null ? [] : this.worldMap.entities;
+        const npcs = this.worldMap === null ? [] : this.worldMap.entities;
         if(this.#entities.length === 0) return npcs;
         return npcs.concat(this.#entities);
     }
@@ -331,7 +331,7 @@ export class MapView extends Control{
      */
     createEntityDraws(){
         const sizeCase = this.sizeCase;
-        const players = this.worldMap == null ? [] : this.worldMap.players;
+        const players = this.worldMap === null ? [] : this.worldMap.players;
         const npcs = this.npcs();
 
         this.#playerDraws = [];
@@ -362,11 +362,11 @@ export class MapView extends Control{
             const entity = draw.entity;
 
             const stride = entity.stride();
-            if(stride == null){
+            if(stride === null){
                 draw.toScreen(this.screenFromLocation(entity.x, entity.y, entity.z));
                 draw.z = entity.z;
                 const c = this.findCaseLocation(entity.x, entity.y, entity.z);
-                if(c != null) c.entityDraws[c.entityDraws.length] = draw;
+                if(c !== null) c.entityDraws[c.entityDraws.length] = draw;
             } else {
                 // Pieds interpolés en x,y ; l'étage du peintre est celui qu'elle occupe
                 // (l'arrivée). Sinon une montée la range au sol et le gazon de
@@ -377,14 +377,14 @@ export class MapView extends Control{
                 const at = stride.at();
                 draw.z = entity.z;
                 const c = this.findCaseLocation(at.x, at.y, entity.z);
-                if(c != null) c.entityDraws[c.entityDraws.length] = draw;
+                if(c !== null) c.entityDraws[c.entityDraws.length] = draw;
             }
         }
     }
 
     select(id){
         const entity = this.#selection.select(id);
-        if(entity != null) this.#following = true;
+        if(entity !== null) this.#following = true;
         return entity;
     }
     moveSelectedTo(cube){ return this.#selection.moveSelectedTo(cube); }
@@ -403,12 +403,12 @@ export class MapView extends Control{
      */
     noCeilingFromSelected(){
         const entity = this.selectedEntity();
-        if(entity == null) this.#noCeilingZones = [];
+        if(entity === null) this.#noCeilingZones = [];
         else this.noCeilingFrom(entity.x, entity.y, entity.z);
     }
     /** Pièces contenant ce point : c'est la carte qui sait, on lui demande. */
     noCeilingFrom(wx, wy, wz){
-        this.#noCeilingZones = this.worldMap == null ? [] : this.worldMap.zonesAt(wx, wy, wz);
+        this.#noCeilingZones = this.worldMap === null ? [] : this.worldMap.zonesAt(wx, wy, wz);
         this.#createCubes = true;
     }
     /** Ce cube fait-il partie d'un plafond à masquer ? hideWalls décide du sort des murs. */
@@ -423,18 +423,18 @@ export class MapView extends Control{
      * aussi bien une carte unique qu'un assemblage de cartes.
      */
     findCube(wx, wy, wz){
-        if(this.worldMap == null) return null;
+        if(this.worldMap === null) return null;
         return this.worldMap.cubeAt(wx, wy, wz);
     }
     /** Ce point fait-il partie du monde ? (différent de « la donnée est chargée »). */
     inWorld(wx, wy, wz, worldMap = this.worldMap){
-        if(worldMap == null) return false;
+        if(worldMap === null) return false;
         return worldMap.inBounds(wx, wy, wz);
     }
     /** Case du viewport (losange affiché), pas un cube monde. */
     findCase(cx, cy){
         for(let i = 0; i < this.cases.length; i++)
-            if ( this.cases[i].x == cx && this.cases[i].y == cy)
+            if ( this.cases[i].x === cx && this.cases[i].y === cy)
                 return this.cases[i];
         return null;    
     }
@@ -447,9 +447,9 @@ export class MapView extends Control{
     findEntity(id){
         if(id == null || id === "") return null;
 
-        if(this.worldMap != null){
+        if(this.worldMap !== null){
             const entity = this.worldMap.findEntity(id);
-            if(entity != null) return entity;
+            if(entity !== null) return entity;
         }
 
         for(let i = 0; i < this.entities.length; i++)

@@ -22,9 +22,9 @@ export class Direction{
 
     /** Vers où se tourner pour aller d'une case à une autre. */
     static between(wx, wy, wxTo, wyTo){
-        if(wx == wxTo && wy == wyTo) return Direction.NONE;
-        if(wx == wxTo) return wy > wyTo ? Direction.NORTH : Direction.SOUTH;
-        if(wy == wyTo) return wx < wxTo ? Direction.EAST : Direction.WEST;
+        if(wx === wxTo && wy === wyTo) return Direction.NONE;
+        if(wx === wxTo) return wy > wyTo ? Direction.NORTH : Direction.SOUTH;
+        if(wy === wyTo) return wx < wxTo ? Direction.EAST : Direction.WEST;
         if(wx > wxTo) return wy > wyTo ? Direction.NORTH_WEST : Direction.SOUTH_WEST;
         return wy > wyTo ? Direction.NORTH_EAST : Direction.SOUTH_EAST;
     }
@@ -188,15 +188,15 @@ export class EntityMove{
         }
 
         if(this.#index >= this.#path.length - 1){
-            if(entity != null && this.destination != null)
+            if(entity != null && this.destination !== null)
                 entity.location.copy(this.destination);
             this.clear();
             return true;
         }
 
         const stride = this.stride();
-        if(stride == null){
-            if(entity != null && this.destination != null)
+        if(stride === null){
+            if(entity != null && this.destination !== null)
                 entity.location.copy(this.destination);
             this.clear();
             return true;

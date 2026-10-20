@@ -168,7 +168,7 @@ export class WorldMap{
 
     /** Place un cube déjà construit (chargement réseau, copier-coller de l'éditeur). */
     addCube(cube){
-        if(cube == null) return null;
+        if(cube === null) return null;
         const x = cube.x;
         const y = cube.y;
         const z = cube.z;
@@ -180,7 +180,7 @@ export class WorldMap{
     /** Vide une cellule. Retourne le cube retiré, ou null. */
     removeCube(x, y, z){
         const cube = this.cubeAt(x, y, z);
-        if(cube != null) this.#cubes[x][y][z] = null;
+        if(cube !== null) this.#cubes[x][y][z] = null;
         return cube;
     }
 
@@ -203,7 +203,7 @@ export class WorldMap{
         for(let z = this.#depth - 1; z >= 0; z--)
         {
             const cube = this.cubeAt(x, y, z);
-            if(cube != null) return cube;
+            if(cube !== null) return cube;
         }
         return null;
     }
@@ -218,13 +218,13 @@ export class WorldMap{
 
     /** Parcourt les cellules occupées : worldMap.forEachCube(cube => …). */
     forEachCube(action){
-        if(typeof action != "function") return;
+        if(typeof action !== "function") return;
         for(let x = 0; x < this.#width; x++)
             for(let y = 0; y < this.#height; y++)
                 for(let z = 0; z < this.#depth; z++)
                 {
                     const cube = this.#cubes[x][y][z];
-                    if(cube != null) action(cube, x, y, z);
+                    if(cube !== null) action(cube, x, y, z);
                 }
     }
 
@@ -273,14 +273,14 @@ export class WorldMap{
      */
     goTo(id, wx, wy, wz){
         const entity = this.findEntity(id);
-        if(entity == null || !entity.canMove) return false;
+        if(entity === null || !entity.canMove) return false;
         return new Pathfinding(entity.x, entity.y, entity.z, this).moveTo(entity, wx, wy, wz);
     }
 
     #measureElapsed(){
         const now = Date.now();
         const clock = this.#clock;
-        if(clock.last == 0){ clock.last = now; clock.elapsed = 0; clock.time = 0; return 0; }
+        if(clock.last === 0){ clock.last = now; clock.elapsed = 0; clock.time = 0; return 0; }
         clock.elapsed = now - clock.last;
         clock.time += clock.elapsed;
         clock.last = now;
@@ -333,7 +333,7 @@ export class WorldMap{
     /** Retire un joueur, un PNJ ou un objet. Retourne l'entité retirée, ou null. */
     removeEntity(id){
         const removed = WorldMap.#pull(this.#players, id);
-        if(removed != null) return removed;
+        if(removed !== null) return removed;
         return WorldMap.#pull(this.#entities, id);
     }
 

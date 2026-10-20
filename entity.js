@@ -44,7 +44,7 @@ export class Entity{
         this.#entityMove = EntityMove.from(options.entityMove);
         // Une entité qui peut marcher a forcément besoin de son carnet de route :
         // sans lui, le calcul de chemin refuse de la faire bouger.
-        if(this.#entityMove == null && this.#canMove) this.#entityMove = EntityMove.empty();
+        if(this.#entityMove === null && this.#canMove) this.#entityMove = EntityMove.empty();
     }
 
     get id(){ return this.#id; }
@@ -67,7 +67,7 @@ export class Entity{
     get canMove(){ return this.#canMove; }
     set canMove(value){
         this.#canMove = !!value;
-        if(this.#canMove && this.#entityMove == null) this.#entityMove = EntityMove.empty();
+        if(this.#canMove && this.#entityMove === null) this.#entityMove = EntityMove.empty();
     }
     get canTarget(){ return this.#canTarget; }
     set canTarget(value){ this.#canTarget = !!value; }
@@ -85,13 +85,13 @@ export class Entity{
     set entityMove(value){ this.#entityMove = EntityMove.from(value); }
 
     /** L'entité est-elle en train de parcourir un trajet ? */
-    get walking(){ return this.#entityMove != null && this.#entityMove.walking; }
+    get walking(){ return this.#entityMove !== null && this.#entityMove.walking; }
 
     /**
      * Le pas en cours, ou null à l'arrêt.
      * C'est ce que la vue utilise pour placer le sprite entre deux cases.
      */
-    stride(){ return this.#entityMove == null ? null : this.#entityMove.stride(); }
+    stride(){ return this.#entityMove === null ? null : this.#entityMove.stride(); }
 
     /**
      * Du temps a passé. Aujourd'hui : le déplacement (délégué à EntityMove).
@@ -99,7 +99,7 @@ export class Entity{
      * Renvoie true si la case logique a changé.
      */
     tick(elapsed){
-        if(this.#entityMove == null) return false;
+        if(this.#entityMove === null) return false;
         const changed = this.#entityMove.progress(elapsed, this);
         if(!this.walking) this.#spriteAnimated = false;
         return changed;
@@ -107,7 +107,7 @@ export class Entity{
 
     /** Interrompt le trajet : on se pose et on range le carnet. */
     stop(){
-        if(this.#entityMove == null) return;
+        if(this.#entityMove === null) return;
         this.#location.copy(this.#entityMove.destination);
         this.#entityMove.clear();
         this.#spriteAnimated = false;
@@ -115,7 +115,7 @@ export class Entity{
 
     /** Lance l'entité sur un trajet déjà calculé, depuis le début. */
     walk(path){
-        if(this.#entityMove == null || !this.#entityMove.start(path)) return false;
+        if(this.#entityMove === null || !this.#entityMove.start(path)) return false;
         this.#spriteAnimated = true;
         return true;
     }

@@ -49,7 +49,7 @@ export class DrawMapView extends Draw {
      */
     drawMap(){
         const mapview = this.control;
-        if(mapview.worldMap == null) return;
+        if(mapview.worldMap === null) return;
 
         const paint = this.Paint;
         const sizeCase = mapview.sizeCase;
@@ -69,17 +69,17 @@ export class DrawMapView extends Draw {
         const sy = c.screen.y;
         const cubes = c.cubes;
 
-        if(cubes.length == 0){
-            if(z == 0) this.drawDefault(paint, sx, sy, sizeCase);
+        if(cubes.length === 0){
+            if(z === 0) this.drawDefault(paint, sx, sy, sizeCase);
         } else {
             for(let i = 0; i < cubes.length; i++){
                 const cube = cubes[i];
-                if(cube != null && cube.z == z)
+                if(cube != null && cube.z === z)
                     this.drawLayer(paint, cube.floors, cube.floorsSpeed, sx, sy, sizeCase, false);
             }
             for(let i = 0; i < cubes.length; i++){
                 const cube = cubes[i];
-                if(cube != null && cube.z == z)
+                if(cube != null && cube.z === z)
                     this.drawLayer(paint, cube.volumes, cube.volumesSpeed, sx, sy, sizeCase, true);
             }
         }
@@ -89,7 +89,7 @@ export class DrawMapView extends Draw {
     drawEntities(paint, c, z){
         const draws = c.entityDraws;
         for(let i = 0; i < draws.length; i++)
-            if(draws[i].z == z)
+            if(draws[i].z === z)
                 this.drawEntity(paint, draws[i]);
     }
 
@@ -104,14 +104,14 @@ export class DrawMapView extends Draw {
      * d'après l'horloge, ce qui synchronise toutes les cases entre elles.
      */
     drawLayer(paint, names, speed, sx, sy, sizeCase, volume){
-        if(names == null || names.length == 0) return;
+        if(names == null || names.length === 0) return;
 
         const rectY = volume ? sy - sizeCase : sy;
         const rectHeight = volume ? sizeCase * 2 : sizeCase;
 
         if(speed > 0){
             const world = this.control.worldMap;
-            const time = world == null ? 0 : world.time;
+            const time = world === null ? 0 : world.time;
             const i = Math.floor(names.length * ((time % speed) / speed));
             this.drawTexture(paint, names[i], sx - sizeCase, rectY, sizeCase * 2, rectHeight);
             return;
@@ -122,7 +122,7 @@ export class DrawMapView extends Draw {
 
     drawTexture(paint, name, x, y, width, height){
         const texture = Textures.get(name);
-        if(texture == null) return;
+        if(texture === null) return;
         texture.draw(paint, x, y, width, height);
     }
 
@@ -193,7 +193,7 @@ export class DrawMapView extends Draw {
         const sizeCase = mapview.sizeCase;
 
         const c = mapview.findCase(cx, cy);
-        const screen = c != null ? c.screen : mapview.screenFromCase(cx, cy);
+        const screen = c !== null ? c.screen : mapview.screenFromCase(cx, cy);
 
         paint.withAlpha(0.35, () => paint.fillLosange(screen.x, screen.y, sizeCase, "#ff0000"));
         paint.strokeLosange(screen.x, screen.y, sizeCase, "#ff0000", 2);

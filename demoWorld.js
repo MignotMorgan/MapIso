@@ -90,8 +90,8 @@ export class DemoWorld{
 
         for(let x = left; x <= right; x++)
             for(let y = top; y <= bottom; y++){
-                const wall = (x == left || x == right || y == top || y == bottom);
-                const door = (x == 14 && y == bottom);
+                const wall = (x === left || x === right || y === top || y === bottom);
+                const door = (x === 14 && y === bottom);
                 if(wall && !door) worldMap.setCube(x, y, 0, { walkable:false, volumes:["bois"] });
                 worldMap.setCube(x, y, 1, { walkable:false, floors:["toit"] });
             }

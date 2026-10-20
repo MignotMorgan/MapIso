@@ -6,7 +6,7 @@ export class ControlInfoMapView extends ControlInfo {
         super();
     }
     get mapView(){ return this.#mapView; }
-    set mapView(value){ this.#mapView = value; }
+    set mapView(value){ this.#mapView = value ?? null; }
 
     initialize(){
         super.initialize();
