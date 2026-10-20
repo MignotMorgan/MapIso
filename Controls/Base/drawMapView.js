@@ -10,9 +10,9 @@ import { Textures } from '../../texture.js';
  */
 export class DrawMapView extends Draw {
 
-    //showGrid / showNumbers : repères de mise au point, à activer depuis l'éditeur.
+    //showGrid / showCaseNumbers : repères de mise au point, à activer depuis l'éditeur.
     #showGrid = false;
-    #showNumbers = false;
+    #showCaseNumbers = false;
     //showHover : losange rouge sur la case survolée.
     #showHover = true;
 
@@ -22,8 +22,8 @@ export class DrawMapView extends Draw {
 
     get showGrid(){ return this.#showGrid; }
     set showGrid(value){ this.#showGrid = !!value; }
-    get showNumbers(){ return this.#showNumbers; }
-    set showNumbers(value){ this.#showNumbers = !!value; }
+    get showCaseNumbers(){ return this.#showCaseNumbers; }
+    set showCaseNumbers(value){ this.#showCaseNumbers = !!value; }
     get showHover(){ return this.#showHover; }
     set showHover(value){ this.#showHover = !!value; }
 
@@ -31,16 +31,13 @@ export class DrawMapView extends Draw {
         super.draw();
         const paint = this.Paint;
         const rect = this.control.Rectangle.rectangleBackground();
-        paint.clipRectangle(rect.x, rect.y, rect.width, rect.height, () => {
+        //paint.clipRectangle(rect.x, rect.y, rect.width, rect.height, () => {
             this.drawMap();
             if(this.#showGrid) this.drawGrid();
-            if(this.#showNumbers) this.drawCaseNumbers();
-            if(this.#showHover) this.drawLosange(this.control.casePoint.x, this.control.casePoint.y);
-        });
+            if(this.#showCaseNumbers) this.drawCaseNumbers();
+            if(this.#showHover) this.drawHover(this.control.casePoint.x, this.control.casePoint.y);
+        //});
     }
-
-    /** Aucun remplissage : on voit le formulaire à travers le rectangle du contrôle. */
-    //drawBackground(){}
 
     /**
      * Le monde, du fond vers l'avant.
@@ -133,36 +130,37 @@ export class DrawMapView extends Draw {
             entityDraw.screen.x, entityDraw.screen.y,
             entityDraw.width, entityDraw.height);
     }
+    /**
+     * Grille iso : 4 familles de droites, comme avant.
+     * Le losange des cases n'est plus calé sur (0,0) : createCases garde
+     * x-y >= -2, x+y >= -2, |x|+|y| <= nbrCases*2. Les extrémités suivent.
+     */
     drawGrid(){
         const paint = this.Paint;
         const control = this.control;
-        const rect = control.Rectangle.rectangleBackground();
-        const ctx = paint.context;
-        const sizeCase = control.sizeCase;
-        const nbrCases = control.nbrCases-1;
-        const maxCases = (control.nbrCases*2)-1;
-
+        const pad = 2;
+        const nbrCases = control.nbrCases - 1;
+        const maxCases = (control.nbrCases * 2) - 1 + pad;
         const color = "#043296ff";
         const lineWidth = 2;
 
-        for( let x = 0; x <= nbrCases; x++){
-            let from = control.screenFromCase(x, 0-x);
-            let to = control.screenFromCase(maxCases-x, 0-x);
-            paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
-            
-            from = control.screenFromCase(x, x+1);
-            to = control.screenFromCase(maxCases-x, x+1);
+        for(let x = 0; x <= nbrCases + pad; x++){
+            let from = control.screenFromCase(x - pad, 0 - x);
+            let to = control.screenFromCase(maxCases - x, 0 - x);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
 
-            from = control.screenFromCase(x, 0-x);
-            to = control.screenFromCase(x, x+1);
+            from = control.screenFromCase(x - pad, x + 1);
+            to = control.screenFromCase(maxCases - x, x + 1);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
 
-            from = control.screenFromCase(nbrCases+x+1, 0-(nbrCases-x));
-            to = control.screenFromCase(nbrCases+x+1, nbrCases+1-x);
+            from = control.screenFromCase(x - pad, 0 - x);
+            to = control.screenFromCase(x - pad, x + 1);
+            paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
+
+            from = control.screenFromCase(nbrCases + x + 1, 0 - (nbrCases + pad - x));
+            to = control.screenFromCase(nbrCases + x + 1, nbrCases + pad + 1 - x);
             paint.drawLine(from.x, from.y, to.x, to.y, color, lineWidth);
         }
-        //paint.borderRectangle(rect.x, rect.y, rect.width, rect.height, "black", 2);
     }
     drawCaseNumbers(){
         const control = this.control;
@@ -191,7 +189,7 @@ export class DrawMapView extends Draw {
      * version testait chaque pixel de la fenêtre, soit plus d'un million de
      * conversions par image.
      */
-    drawLosange(cx, cy){
+    drawHover(cx, cy){
         const control = this.control;
         const paint = this.Paint;
         const size = control.sizeCase;
