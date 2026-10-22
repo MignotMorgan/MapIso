@@ -12,6 +12,9 @@
  */
 export class Room{
 
+    static type = "Room";
+    static version = 1;
+
     #x = 0;
     #y = 0;
     #z = 0;
@@ -19,13 +22,8 @@ export class Room{
     #height = 1;
     #depth = 1;
 
-    constructor(x, y, z, width = 1, height = 1, depth = 1){
-        this.#x = x ?? 0;
-        this.#y = y ?? 0;
-        this.#z = z ?? 0;
-        this.#width = width ?? 1;
-        this.#height = height ?? 1;
-        this.#depth = depth ?? 1;
+    constructor(options = {}){
+        this.fromJSON(options);
     }
 
     get x(){ return this.#x; }
@@ -53,21 +51,27 @@ export class Room{
             && this.#z < wz;
     }
 
-    static from(value){
-        if(value instanceof Room) return value;
-        const v = value ?? {};
-        return new Room(
-            v.x ?? 0,
-            v.y ?? 0,
-            v.z ?? 0,
-            v.width ?? 1,
-            v.height ?? 1,
-            v.depth ?? 1
-        );
+    toJSON(json){
+        if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
+        json.type = this.constructor.type;
+        json.version = this.constructor.version;
+        json.x = this.#x;
+        json.y = this.#y;
+        json.z = this.#z;
+        json.width = this.#width;
+        json.height = this.#height;
+        json.depth = this.#depth;
+        return json;
     }
 
-    toJSON(){
-        return { x:this.#x, y:this.#y, z:this.#z,
-                 width:this.#width, height:this.#height, depth:this.#depth };
+    fromJSON(json){
+        const v = json ?? {};
+        this.#x = v.x ?? 0;
+        this.#y = v.y ?? 0;
+        this.#z = v.z ?? 0;
+        this.#width = v.width ?? 1;
+        this.#height = v.height ?? 1;
+        this.#depth = v.depth ?? 1;
+        return this;
     }
 }

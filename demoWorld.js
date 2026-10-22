@@ -1,5 +1,6 @@
 import { CoreMapView } from './Controls/Base/coreMapView.js';
 import { Textures } from './texture.js';
+import { WorldMap } from './worldMap.js';
 
 /**
  * Scène de démonstration : prairie, étangs, chemins, cottage, plateforme,
@@ -43,7 +44,10 @@ export class DemoWorld{
     }
 
     createWorldMap(){
-        const worldMap = CoreMapView.FactoryWorld.createWorldMap(this.#width, this.#height, this.#depth, {name:"démo"});
+        const worldMap = CoreMapView.FactoryWorld.create({
+            type: WorldMap.type, name: "démo",
+            width: this.#width, height: this.#height, depth: this.#depth
+        });
 
         worldMap.fillFloor(0, { walkable:true, floors:["herbe"] });
         this.pond(worldMap);

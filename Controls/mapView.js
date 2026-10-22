@@ -1,5 +1,6 @@
 import { CoreMapView } from './Base/coreMapView.js';
 import { Control } from 'Control/control.js';
+import { Case } from '../case.js';
 import { EntityDraw } from '../entityDraw.js';
 import { Point, Location, CasePoint } from '../point.js';
 import { Projector } from '../projector.js';
@@ -231,7 +232,7 @@ export class MapView extends Control{
     }
 
     newCase(cx, cy){
-        const c = CoreMapView.FactoryWorld.createCase(cx, cy);
+        const c = new Case(cx, cy);
         c.screen = this.screenFromCase(cx, cy);
         return c;
     }

@@ -96,6 +96,9 @@ export class Stride{
  */
 export class EntityMove{
 
+    static type = "EntityMove";
+    static version = 1;
+
     #id = 0;
     #path = [];
     #speed = 400;
@@ -105,19 +108,16 @@ export class EntityMove{
     #adjustment = null;
 
     constructor(options = {}){
-        this.#id = options.id ?? 0;
-        this.path = options.path ?? [];
-        this.#speed = options.speed ?? 400;
-        this.#index = options.index ?? 0;
-        this.#step = options.step ?? 0;
-        this.#sprite = options.sprite ?? null;
-        this.#adjustment = Point.from(options.adjustment);
+        this.fromJSON(options);
     }
 
     get id(){ return this.#id; }
     set id(value){ this.#id = value ?? 0; }
     get path(){ return this.#path; }
-    set path(value){ this.#path = (value ?? []).map(point => Location.from(point)); }
+    set path(value){
+        this.#path = (value ?? []).map(point =>
+            point instanceof Location ? point : new Location().fromJSON(point));
+    }
     get speed(){ return this.#speed; }
     set speed(value){ this.#speed = value ?? 0; }
     get index(){ return this.#index; }
@@ -207,24 +207,35 @@ export class EntityMove{
         return true;
     }
 
-    toJSON(){
-        return {
-            id: this.#id,
-            path: this.#path,
-            speed: this.#speed,
-            index: this.#index,
-            step: this.#step,
-            sprite: this.#sprite,
-            adjustment: this.#adjustment
-        };
+    toJSON(json){
+        if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
+        json.type = this.constructor.type;
+        json.version = this.constructor.version;
+        json.id = this.#id;
+        const path = [];
+        for(let i = 0; i < this.#path.length; i++)
+            path[path.length] = this.#path[i].toJSON();
+        json.path = path;
+        json.speed = this.#speed;
+        json.index = this.#index;
+        json.step = this.#step;
+        json.sprite = this.#sprite;
+        json.adjustment = this.#adjustment === null ? null : this.#adjustment.toJSON();
+        return json;
     }
 
     /** Carnet vierge : une allure par défaut, et aucun trajet. */
     static empty(){ return new EntityMove(); }
 
-    static from(value){
-        if(value == null) return null;
-        if(value instanceof EntityMove) return value;
-        return new EntityMove(value);
+    fromJSON(json){
+        const v = json ?? {};
+        this.#id = v.id ?? 0;
+        this.path = v.path ?? [];
+        this.#speed = v.speed ?? 400;
+        this.#index = v.index ?? 0;
+        this.#step = v.step ?? 0;
+        this.#sprite = v.sprite ?? null;
+        this.#adjustment = v.adjustment == null ? null : new Point().fromJSON(v.adjustment);
+        return this;
     }
 }

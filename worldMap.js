@@ -19,10 +19,15 @@ import { Room } from './room.js';
  */
 export class WorldMap{
 
+    static type = "WorldMap";
+    /** Version du document JSON (enveloppe : listes, clés racine). */
+    static version = 1;
+
     #name = "";
     #width = 0;
     #height = 0;
     #depth = 0;
+    #version = WorldMap.version;
     //cubes : grille dense cubes[x][y][z], une cellule vide vaut null
     #cubes = [];
     //players : les joueurs
@@ -35,32 +40,17 @@ export class WorldMap{
     #clock = {last:0, elapsed:0, time:0};
 
     /**
+     * options : width, height, depth, name, version, cubes, players, entities, rooms.
      * width/height = taille du sol, depth = nombre d'étages.
-     * options : name, cubes, players, entities, rooms.
      */
-    constructor(width, height, depth, options = {}){
-        this.#width = WorldMap.#toSize(width);
-        this.#height = WorldMap.#toSize(height);
-        this.#depth = WorldMap.#toSize(depth);
-        this.#cubes = WorldMap.#emptyGrid(this.#width, this.#height, this.#depth);
-
-        this.#name = options.name ?? "";
-
-        const cubes = options.cubes ?? null;
-        if(cubes != null) this.loadCubes(cubes);
-
-        const players = options.players ?? [];
-        for(let i = 0; i < players.length; i++) this.addPlayer(players[i]);
-
-        const entities = options.entities ?? [];
-        for(let i = 0; i < entities.length; i++) this.addEntity(entities[i]);
-
-        const rooms = options.rooms ?? [];
-        for(let i = 0; i < rooms.length; i++) this.addRoom(rooms[i]);
+    constructor(options = {}){
+        this.fromJSON(options);
     }
 
     get name(){ return this.#name; }
     set name(value){ this.#name = value ?? ""; }
+    /** Version du document dont cette carte est issue, ou la version courante si elle est neuve. */
+    get version(){ return this.#version; }
     get width(){ return this.#width; }
     get height(){ return this.#height; }
     get depth(){ return this.#depth; }
@@ -91,7 +81,7 @@ export class WorldMap{
     /** Crée un cube et le place dans la grille. options : floors, volumes, walkable… Retourne le cube. */
     setCube(x, y, z, options = {}){
         if(!this.inBounds(x, y, z)) return null;
-        const cube = CoreMapView.FactoryWorld.createCube(x, y, z, options);
+        const cube = CoreMapView.FactoryWorld.create({...options, x, y, z, type: options.type ?? Cube.type});
         this.#cubes[x][y][z] = cube;
         return cube;
     }
@@ -239,12 +229,12 @@ export class WorldMap{
 
     /** Crée un PNJ ou un objet mobile. options : id, width, sprite, canMove… */
     spawn(x, y, z, options = {}){
-        return this.addEntity(CoreMapView.FactoryWorld.createEntity(x, y, z, options));
+        return this.addEntity(CoreMapView.FactoryWorld.create({...options, x, y, z, type: options.type ?? Entity.type}));
     }
 
     /** Crée un joueur. */
     spawnPlayer(x, y, z, options = {}){
-        return this.addPlayer(CoreMapView.FactoryWorld.createEntity(x, y, z, options));
+        return this.addPlayer(CoreMapView.FactoryWorld.create({...options, x, y, z, type: options.type ?? Entity.type}));
     }
 
     /** Cherche par identifiant : joueurs d'abord, puis PNJ / objets. */
@@ -282,8 +272,10 @@ export class WorldMap{
     /** Déclare une pièce : addRoom(room) ou addRoom(x,y,z,width,height,depth). */
     addRoom(x, y, z, width, height, depth){
         const room = (typeof x === "object" || x == null)
-            ? Room.from(x)
-            : CoreMapView.FactoryWorld.createRoom(x, y, z, width, height, depth);
+            ? (x instanceof Room ? x
+                : x == null ? CoreMapView.FactoryWorld.create({type: Room.type})
+                : CoreMapView.FactoryWorld.create(x))
+            : CoreMapView.FactoryWorld.create({type: Room.type, x, y, z, width, height, depth});
         this.#rooms[this.#rooms.length] = room;
         return room;
     }
@@ -304,53 +296,23 @@ export class WorldMap{
         return found;
     }
 
-    // === SAUVEGARDE ===
-
-    /** Sérialise la carte (JSON.stringify(worldMap) suffit). Seules les cellules occupées sont écrites. */
-    toJSON(){
-        const cubes = [];
-        this.forEachCube(cube => { cubes[cubes.length] = cube; });
-        return {
-            name: this.#name,
-            width: this.#width,
-            height: this.#height,
-            depth: this.#depth,
-            cubes: cubes,
-            players: this.#players,
-            entities: this.#entities,
-            rooms: this.#rooms
-        };
-    }
-
-    /** Reconstruit une carte depuis du JSON. */
-    static from(value){
-        if(value instanceof WorldMap) return value;
-        const v = value ?? {};
-        return new WorldMap(
-            v.width ?? 0,
-            v.height ?? 0,
-            v.depth ?? 0,
-            v
-        );
-    }
-
     // === INTERNE ===
 
     // Accepte un Cube déjà construit ou un objet JSON, et le range dans la grille.
     #place(value){
         if(value == null) return;
         if(value instanceof Cube){ this.addCube(value); return; }
-        this.setCube(value.x, value.y, value.z, value);
+        this.addCube(CoreMapView.FactoryWorld.create(value));
     }
 
     // Range l'entité dans la liste voulue et lui donne cette carte comme référence.
-    // Un objet JSON est d'abord transformé en Entity : la carte ne contient que de vrais objets.
+    // Un objet JSON est d'abord transformé via le registre type → classe.
     #attach(value, list){
         if(value == null) return null;
         const entity = (value instanceof Entity)
             ? value
-            : CoreMapView.FactoryWorld.createEntity(
-                value.x ?? 0, value.y ?? 0, value.z ?? 0, value);
+            : CoreMapView.FactoryWorld.create(value);
+        if(entity === null) return null;
         entity.worldMap = this;
         list[list.length] = entity;
         return entity;
@@ -378,4 +340,60 @@ export class WorldMap{
         }
         return grid;
     }
+
+    // === SAUVEGARDE ===
+
+    /**
+     * Écrit le document dans json. JSON.stringify(worldMap) suffit.
+     * Seules les cellules occupées sont écrites. Les imbriqués s'écrivent eux-mêmes.
+     */
+    toJSON(json){
+        if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
+        json.type = this.constructor.type;
+        json.version = this.#version;
+        json.name = this.#name;
+        json.width = this.#width;
+        json.height = this.#height;
+        json.depth = this.#depth;
+        const cubes = [];
+        this.forEachCube(cube => { cubes[cubes.length] = cube.toJSON(); });
+        json.cubes = cubes;
+        json.players = WorldMap.#toJsonList(this.#players);
+        json.entities = WorldMap.#toJsonList(this.#entities);
+        json.rooms = WorldMap.#toJsonList(this.#rooms);
+        return json;
+    }
+
+    /**
+     * Lit le document dans cette instance.
+     * Un document sans version est lu comme le format 1.
+     */
+    fromJSON(json){
+        const v = json ?? {};
+        this.#width = WorldMap.#toSize(v.width ?? this.#width);
+        this.#height = WorldMap.#toSize(v.height ?? this.#height);
+        this.#depth = WorldMap.#toSize(v.depth ?? this.#depth);
+        this.#cubes = WorldMap.#emptyGrid(this.#width, this.#height, this.#depth);
+        this.#name = v.name ?? "";
+        this.#version = v.version ?? 1;
+        this.#players = [];
+        this.#entities = [];
+        this.#rooms = [];
+        if(v.cubes != null) this.loadCubes(v.cubes);
+        const players = v.players ?? [];
+        for(let i = 0; i < players.length; i++) this.addPlayer(players[i]);
+        const entities = v.entities ?? [];
+        for(let i = 0; i < entities.length; i++) this.addEntity(entities[i]);
+        const rooms = v.rooms ?? [];
+        for(let i = 0; i < rooms.length; i++) this.addRoom(rooms[i]);
+        return this;
+    }
+
+    static #toJsonList(list){
+        const json = [];
+        for(let i = 0; i < list.length; i++)
+            if(list[i] != null) json[json.length] = list[i].toJSON();
+        return json;
+    }
+
 }

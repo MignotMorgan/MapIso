@@ -1,20 +1,13 @@
-import { Case } from './case.js';
-import { Cube } from './cube.js';
-import { Entity } from './entity.js';
-import { Room } from './room.js';
-import { WorldMap } from './worldMap.js';
+import { Register } from './register.js';
 
-/** Crée les objets monde (carte, cubes, entités, cases), pas les contrôles UI. */
+
 export class FactoryWorld{
-    constructor(){}
-    createCase(x, y){ return new Case(x, y); }
-    /** options : floors, volumes, walkable… */
-    createCube(x, y, z, options){ return new Cube(x, y, z, options); }
-    /** options : id, width, canMove, sprite… */
-    createEntity(x, y, z, options){ return new Entity(x, y, z, options); }
-    createRoom(x, y, z, width, height, depth){ return new Room(x, y, z, width, height, depth); }
-    /** Carte vide aux dimensions données. options : name, cubes, players, entities, rooms. */
-    createWorldMap(width, height, depth, options){ return new WorldMap(width, height, depth, options); }
-    /** Carte reconstruite depuis du JSON (sauvegarde éditeur ou message serveur). */
-    loadWorldMap(json){ return WorldMap.from(json); }
+
+    #register = new Register();
+
+    create(json){
+        if(json == null || json.type == null) return null;
+        const Class = this.#register.get(json.type);
+        return new Class(json);
+    }
 }

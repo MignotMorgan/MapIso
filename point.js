@@ -35,16 +35,26 @@ export class Point{
     /** Distance à vol d'oiseau. */
     distance(other){ return Math.hypot(other.x - this.#x, other.y - this.#y); }
 
-    toJSON(){ return {x:this.#x, y:this.#y}; }
+    /**
+     * Écrit dans l'objet json (le fils appelle super.toJSON(json) puis complète).
+     * JSON.stringify passe une clé, pas un objet : on part alors d'un {}.
+     */
+    toJSON(json){
+        if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
+        json.x = this.#x;
+        json.y = this.#y;
+        return json;
+    }
     toString(){ return this.#x + ", " + this.#y; }
 
     /**
-     * Accepte un Point, un {x, y}, ou rien du tout.
+     * Lit un Point, un {x, y}, ou rien du tout, dans cette instance.
+     * Un héritier appelle super.fromJSON(json) puis complète.
      */
-    static from(value){
-        if(value instanceof Point) return value;
-        const v = value ?? {};
-        return new Point(v.x ?? 0, v.y ?? 0);
+    fromJSON(json){
+        if(json instanceof Point) return this.copy(json);
+        const v = json ?? {};
+        return this.set(v.x ?? 0, v.y ?? 0);
     }
 }
 
@@ -79,13 +89,17 @@ export class Location extends Point{
     /** Distance mesurée au sol : l'altitude ne compte pas dans la longueur d'un pas. */
     ground(other){ return Math.hypot(other.x - this.x, other.y - this.y); }
 
-    toJSON(){ return {x:this.x, y:this.y, z:this.#z}; }
+    toJSON(json){
+        json = super.toJSON(json);
+        json.z = this.#z;
+        return json;
+    }
     toString(){ return this.x + ", " + this.y + ", " + this.#z; }
 
-    static from(value){
-        if(value instanceof Location) return value;
-        const v = value ?? {};
-        return new Location(v.x ?? 0, v.y ?? 0, v.z ?? 0);
+    fromJSON(json){
+        super.fromJSON(json);
+        this.#z = json instanceof Location ? json.z : (json ?? {}).z ?? 0;
+        return this;
     }
 }
 
@@ -122,12 +136,17 @@ export class CasePoint extends Point{
     clone(){ return new CasePoint(this.x, this.y, this.#adjustment); }
     equals(other){ return super.equals(other) && this.#adjustment.equals(other.adjustment); }
 
-    toJSON(){ return {x:this.x, y:this.y, adjustment:this.#adjustment}; }
+    toJSON(json){
+        json = super.toJSON(json);
+        json.adjustment = this.#adjustment.toJSON();
+        return json;
+    }
     toString(){ return this.x + ", " + this.y + " (" + this.#adjustment + ")"; }
 
-    static from(value){
-        if(value instanceof CasePoint) return value;
-        const v = value ?? {};
-        return new CasePoint(v.x ?? 0, v.y ?? 0, v.adjustment);
+    fromJSON(json){
+        super.fromJSON(json);
+        if(json instanceof CasePoint) this.#adjustment.copy(json.adjustment);
+        else this.#adjustment.fromJSON((json ?? {}).adjustment);
+        return this;
     }
 }

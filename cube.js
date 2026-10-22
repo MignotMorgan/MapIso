@@ -1,5 +1,8 @@
 export class Cube{
 
+    static type = "Cube";
+    static version = 1;
+
     #x = 0;
     #y = 0;
     #z = 0;
@@ -9,16 +12,8 @@ export class Cube{
     #volumesSpeed = 0;
     #walkable = false;
 
-    constructor(x, y, z, options = {}){
-        this.#x = x;
-        this.#y = y;
-        this.#z = z;
-
-        this.#floors = options.floors ?? [];
-        this.#volumes = options.volumes ?? [];
-        this.#floorsSpeed = options.floorsSpeed ?? 0;
-        this.#volumesSpeed = options.volumesSpeed ?? 0;
-        this.#walkable = options.walkable ?? false;
+    constructor(options = {}){
+        this.fromJSON(options);
     }
 
     get x(){ return this.#x; }
@@ -35,17 +30,35 @@ export class Cube{
     get walkable(){ return this.#walkable; }
     set walkable(value){ this.#walkable = !!value; }
 
-    /** Les champs privés sont invisibles pour JSON.stringify : on les expose ici. */
-    toJSON(){
-        return {
-            x: this.#x,
-            y: this.#y,
-            z: this.#z,
-            floors: this.#floors,
-            volumes: this.#volumes,
-            floorsSpeed: this.#floorsSpeed,
-            volumesSpeed: this.#volumesSpeed,
-            walkable: this.#walkable
-        };
+    /**
+     * Écrit dans l'objet json. type/version viennent de la classe réelle
+     * (une sous-classe écrit le sien via this.constructor).
+     */
+    toJSON(json){
+        if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
+        json.type = this.constructor.type;
+        json.version = this.constructor.version;
+        json.x = this.#x;
+        json.y = this.#y;
+        json.z = this.#z;
+        json.floors = this.#floors;
+        json.volumes = this.#volumes;
+        json.floorsSpeed = this.#floorsSpeed;
+        json.volumesSpeed = this.#volumesSpeed;
+        json.walkable = this.#walkable;
+        return json;
+    }
+
+    fromJSON(json){
+        const v = json ?? {};
+        this.#x = v.x ?? 0;
+        this.#y = v.y ?? 0;
+        this.#z = v.z ?? 0;
+        this.#floors = v.floors ?? [];
+        this.#volumes = v.volumes ?? [];
+        this.#floorsSpeed = v.floorsSpeed ?? 0;
+        this.#volumesSpeed = v.volumesSpeed ?? 0;
+        this.#walkable = v.walkable ?? false;
+        return this;
     }
 }

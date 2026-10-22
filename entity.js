@@ -8,11 +8,15 @@ import { EntityMove, Direction } from './entityMove.js';
  * Position (x,y,z) : coin supérieur-droit-arrière du volume.
  * Le volume va vers x/y décroissants et z croissant : base width×width, hauteur height.
  *
- * Le constructeur lit le JSON camelCase (id, canMove, spriteStand…).
+ * Le constructeur reçoit un objet options (x, y, z, id, canMove, sprite…).
  */
 export class Entity{
+
+    static type = "Entity";
+    static version = 1;
+
     #id = "";
-    #location = null;          // position dans le monde voxel
+    #location = new Location(); // position dans le monde voxel
     #width = 1;
     #height = 1;
     #adjustment = new Point(); // offset dans la case, en % de sizeCase (0..100)
@@ -26,25 +30,8 @@ export class Entity{
     #worldMap = null;          // carte d'appartenance (pathfinding, collisions)
     #entityMove = null;
 
-    constructor(x, y, z, options = {}){
-        this.#location = new Location(x, y, z);
-
-        this.#id = options.id ?? "";
-        this.#width = options.width ?? 1;
-        this.#height = options.height ?? 1;
-        this.#adjustment.copy(Point.from(options.adjustment));
-        this.#direction = options.direction ?? Direction.NONE;
-        this.#canMove = options.canMove ?? false;
-        this.#canTarget = options.canTarget ?? false;
-        this.#walkable = options.walkable ?? false;
-        this.#sprite = options.sprite ?? null;
-        this.#spriteStand = options.spriteStand ?? null;
-        this.#spriteAnimated = options.spriteAnimated ?? false;
-        this.#worldMap = options.worldMap ?? null;
-        this.#entityMove = EntityMove.from(options.entityMove);
-        // Une entité qui peut marcher a forcément besoin de son carnet de route :
-        // sans lui, le calcul de chemin refuse de la faire bouger.
-        if(this.#entityMove === null && this.#canMove) this.#entityMove = EntityMove.empty();
+    constructor(options = {}){
+        this.fromJSON(options);
     }
 
     get id(){ return this.#id; }
@@ -82,7 +69,7 @@ export class Entity{
     get worldMap(){ return this.#worldMap; }
     set worldMap(value){ this.#worldMap = value ?? null; }
     get entityMove(){ return this.#entityMove; }
-    set entityMove(value){ this.#entityMove = EntityMove.from(value); }
+    set entityMove(value){ this.#entityMove = this.#moveFromJSON(value); }
 
     /** L'entité est-elle en train de parcourir un trajet ? */
     get walking(){ return this.#entityMove !== null && this.#entityMove.walking; }
@@ -132,26 +119,58 @@ export class Entity{
     }
 
     /**
-     * Les champs privés sont invisibles pour JSON.stringify : on les expose ici.
-     * worldMap est volontairement omis : c'est la carte qui contient l'entité, pas l'inverse.
+     * Écrit dans l'objet json. Un héritier appelle super.toJSON(json) puis ajoute
+     * ses champs. type/version : classe réelle (this.constructor).
+     * worldMap est omis : c'est la carte qui contient l'entité, pas l'inverse.
      */
-    toJSON(){
-        return {
-            id: this.#id,
-            x: this.#location.x,
-            y: this.#location.y,
-            z: this.#location.z,
-            width: this.#width,
-            height: this.#height,
-            adjustment: this.#adjustment,
-            direction: this.#direction,
-            canMove: this.#canMove,
-            canTarget: this.#canTarget,
-            walkable: this.#walkable,
-            sprite: this.#sprite,
-            spriteStand: this.#spriteStand,
-            spriteAnimated: this.#spriteAnimated,
-            entityMove: this.#entityMove
-        };
+    toJSON(json){
+        if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
+        json.type = this.constructor.type;
+        json.version = this.constructor.version;
+        json.id = this.#id;
+        json.x = this.#location.x;
+        json.y = this.#location.y;
+        json.z = this.#location.z;
+        json.width = this.#width;
+        json.height = this.#height;
+        json.adjustment = this.#adjustment.toJSON();
+        json.direction = this.#direction;
+        json.canMove = this.#canMove;
+        json.canTarget = this.#canTarget;
+        json.walkable = this.#walkable;
+        json.sprite = this.#sprite;
+        json.spriteStand = this.#spriteStand;
+        json.spriteAnimated = this.#spriteAnimated;
+        json.entityMove = this.#entityMove === null ? null : this.#entityMove.toJSON();
+        return json;
+    }
+
+    /**
+     * Lit le JSON dans cette instance. Un héritier appelle super.fromJSON(json)
+     * puis ses champs.
+     */
+    fromJSON(json){
+        const v = json ?? {};
+        this.#id = v.id ?? "";
+        this.#location.set(v.x ?? 0, v.y ?? 0, v.z ?? 0);
+        this.#width = v.width ?? 1;
+        this.#height = v.height ?? 1;
+        this.#adjustment.fromJSON(v.adjustment);
+        this.#direction = v.direction ?? Direction.NONE;
+        this.#canMove = v.canMove ?? false;
+        this.#canTarget = v.canTarget ?? false;
+        this.#walkable = v.walkable ?? false;
+        this.#sprite = v.sprite ?? null;
+        this.#spriteStand = v.spriteStand ?? null;
+        this.#spriteAnimated = v.spriteAnimated ?? false;
+        this.#entityMove = this.#moveFromJSON(v.entityMove);
+        if(this.#entityMove === null && this.#canMove) this.#entityMove = EntityMove.empty();
+        return this;
+    }
+
+    #moveFromJSON(value){
+        if(value == null) return null;
+        if(value instanceof EntityMove) return value;
+        return new EntityMove(value);
     }
 }
