@@ -6,17 +6,18 @@ import { DemoWorld } from './demoWorld.js';
 
 function start(){
     const factoryForm = new FactoryFormView();
-    const form = factoryForm.create(100, 100, 1600, 800);
+    const form = factoryForm.create(40, 40, 1760, 960);
     form.id = "formView";
     form.canMove = true;
     form.canResize = true;
     form.customTheme.background.color = "#5e5f5f";
 
     const factory = new FactoryMapView();
-    const mapView = factory.create(750, 100, 620, 320);
+    const mapView = factory.create(550, 200, 1000, 500);
     mapView.id = "mapView";
     mapView.canMove = true;
     mapView.canResize = true;
+    mapView.caseCount = 30;
     //mapView.canScale = true;
     form.add(mapView);
 
@@ -33,8 +34,8 @@ function start(){
     mapView.select("heros");
 
     // Repères de mise au point, à réactiver au besoin.
-    mapView.Draw.showGrid = true;
-    mapView.Draw.showCaseNumbers = true;
+    mapView.Draw.showGrid = false;
+    mapView.Draw.showCaseNumbers = false;
 
     let controlInfoMapView = (new FactoryControlInfoMapView).create(10, 10, 425, 275);
     controlInfoMapView.id = "infoMapView";
