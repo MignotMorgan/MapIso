@@ -75,12 +75,6 @@ export class Entity{
     get walking(){ return this.#entityMove !== null && this.#entityMove.walking; }
 
     /**
-     * Le pas en cours, ou null à l'arrêt.
-     * C'est ce que la vue utilise pour placer le sprite entre deux cases.
-     */
-    stride(){ return this.#entityMove === null ? null : this.#entityMove.stride(); }
-
-    /**
      * Du temps a passé. Aujourd'hui : le déplacement (délégué à EntityMove).
      * Plus tard : dégâts, événements, IA — toujours ici, jamais dans la vue.
      * Renvoie true si la case logique a changé.
@@ -91,6 +85,12 @@ export class Entity{
         if(!this.walking) this.#spriteAnimated = false;
         return changed;
     }
+
+    /**
+     * Le pas en cours, ou null à l'arrêt.
+     * C'est ce que la vue utilise pour placer le sprite entre deux cases.
+     */
+    stride(){ return this.#entityMove === null ? null : this.#entityMove.stride(); }
 
     /** Interrompt le trajet : on se pose et on range le carnet. */
     stop(){

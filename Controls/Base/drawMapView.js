@@ -75,12 +75,17 @@ export class DrawMapView extends Draw {
             for(let i = 0; i < cubes.length; i++){
                 const cube = cubes[i];
                 if(cube != null && cube.z === z)
-                    this.drawLayer(paint, cube.floors, cube.floorsSpeed, sx, sy, sizeCase, false);
+                    this.drawLayer(paint, cube.floors, cube.speed, sx, sy, sizeCase, false);
             }
             for(let i = 0; i < cubes.length; i++){
                 const cube = cubes[i];
                 if(cube != null && cube.z === z)
-                    this.drawLayer(paint, cube.volumes, cube.volumesSpeed, sx, sy, sizeCase, true);
+                    this.drawWalls(paint, cube, sx, sy, sizeCase);
+            }
+            for(let i = 0; i < cubes.length; i++){
+                const cube = cubes[i];
+                if(cube != null && cube.z === z)
+                    this.drawLayer(paint, cube.volumes, cube.speed, sx, sy, sizeCase, true);
             }
         }
         this.drawEntities(paint, c, z);
@@ -104,20 +109,72 @@ export class DrawMapView extends Draw {
      * d'après l'horloge, ce qui synchronise toutes les cases entre elles.
      */
     drawLayer(paint, names, speed, sx, sy, sizeCase, volume){
-        if(names == null || names.length === 0) return;
+        const frames = this.frames(names, speed);
+        if(frames.length === 0) return;
 
         const rectY = volume ? sy - sizeCase : sy;
         const rectHeight = volume ? sizeCase * 2 : sizeCase;
+        for(let i = 0; i < frames.length; i++)
+            this.drawTexture(paint, frames[i], sx - sizeCase, rectY, sizeCase * 2, rectHeight);
+    }
 
-        if(speed > 0){
-            const world = this.control.worldMap;
-            const time = world === null ? 0 : world.time;
-            const i = Math.floor(names.length * ((time % speed) / speed));
-            this.drawTexture(paint, names[i], sx - sizeCase, rectY, sizeCase * 2, rectHeight);
-            return;
+    /**
+     * Flancs du cube : west à gauche de l'écran, north à droite.
+     * Ils montent d'une case au-dessus du losange de sol.
+     */
+    drawWalls(paint, cube, sx, sy, sizeCase){
+        const top = paint.losange(sx, sy - sizeCase, sizeCase);
+        const base = paint.losange(sx, sy, sizeCase);
+        const west = [top[3], top[2], base[2], base[3]];
+        const north = [top[1], top[2], base[2], base[1]];
+        const x = sx - sizeCase;
+        const y = sy - sizeCase;
+        const width = sizeCase * 2;
+        const height = sizeCase * 2;
+        this.drawFace(paint, cube.west, cube.speed, west, x, y, width, height, "left");
+        this.drawFace(paint, cube.north, cube.speed, north, x, y, width, height, "right");
+    }
+
+    drawFace(paint, names, speed, points, x, y, width, height, side){
+        const frames = this.frames(names, speed);
+        for(let i = 0; i < frames.length; i++){
+            const texture = Textures.get(frames[i]);
+            if(texture === null) continue;
+            if(texture.image !== null){
+                this.clipFace(paint, points, () => {
+                    paint.drawImage(texture.image, x, y, width, height);
+                });
+                continue;
+            }
+            const faces = texture.faces;
+            let color = texture.color;
+            if(faces != null) color = side === "left" ? faces.left : faces.right;
+            if(color == null) continue;
+            paint.fillPolygon(points, color);
         }
-        for(let i = 0; i < names.length; i++)
-            this.drawTexture(paint, names[i], sx - sizeCase, rectY, sizeCase * 2, rectHeight);
+    }
+
+    clipFace(paint, points, action){
+        const ctx = paint.context;
+        if(ctx == null || typeof action !== "function") return;
+        paint.save();
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for(let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+        ctx.closePath();
+        ctx.clip();
+        action();
+        paint.restore();
+    }
+
+    /** speed > 0 : une seule image du tableau, calée sur l'horloge du monde. */
+    frames(names, speed){
+        if(names == null || names.length === 0) return [];
+        if(!(speed > 0)) return names;
+        const world = this.control.worldMap;
+        const time = world === null ? 0 : world.time;
+        const i = Math.floor(names.length * ((time % speed) / speed));
+        return [names[i]];
     }
 
     drawTexture(paint, name, x, y, width, height){

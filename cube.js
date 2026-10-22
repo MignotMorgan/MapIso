@@ -6,11 +6,14 @@ export class Cube{
     #x = 0;
     #y = 0;
     #z = 0;
+    #speed = 0;
     #floors = [];
+    #north = [];
+    #west = [];
     #volumes = [];
-    #floorsSpeed = 0;
-    #volumesSpeed = 0;
     #walkable = false;
+    #walkableNorth = true;
+    #walkableWest = true;
 
     constructor(options = {}){
         this.fromJSON(options);
@@ -19,16 +22,22 @@ export class Cube{
     get x(){ return this.#x; }
     get y(){ return this.#y; }
     get z(){ return this.#z; }
+    get speed(){ return this.#speed; }
+    set speed(value){ this.#speed = value ?? 0; }
     get floors(){ return this.#floors; }
-    set floors(value){ this.#floors = value || []; }
+    set floors(value){ this.#floors = value ?? []; }
+    get north(){ return this.#north; }
+    set north(value){ this.#north = value ?? []; }
+    get west(){ return this.#west; }
+    set west(value){ this.#west = value ?? []; }
     get volumes(){ return this.#volumes; }
-    set volumes(value){ this.#volumes = value || []; }
-    get floorsSpeed(){ return this.#floorsSpeed; }
-    set floorsSpeed(value){ this.#floorsSpeed = value ?? 0; }
-    get volumesSpeed(){ return this.#volumesSpeed; }
-    set volumesSpeed(value){ this.#volumesSpeed = value ?? 0; }
+    set volumes(value){ this.#volumes = value ?? []; }
     get walkable(){ return this.#walkable; }
     set walkable(value){ this.#walkable = !!value; }
+    get walkableNorth(){ return this.#walkableNorth; }
+    set walkableNorth(value){ this.#walkableNorth = !!value; }
+    get walkableWest(){ return this.#walkableWest; }
+    set walkableWest(value){ this.#walkableWest = !!value; }
 
     /**
      * Écrit dans l'objet json. type/version viennent de la classe réelle
@@ -41,11 +50,14 @@ export class Cube{
         json.x = this.#x;
         json.y = this.#y;
         json.z = this.#z;
+        json.speed = this.#speed;
         json.floors = this.#floors;
+        json.north = this.#north;
+        json.west = this.#west;
         json.volumes = this.#volumes;
-        json.floorsSpeed = this.#floorsSpeed;
-        json.volumesSpeed = this.#volumesSpeed;
         json.walkable = this.#walkable;
+        json.walkableNorth = this.#walkableNorth;
+        json.walkableWest = this.#walkableWest;
         return json;
     }
 
@@ -54,11 +66,14 @@ export class Cube{
         this.#x = v.x ?? 0;
         this.#y = v.y ?? 0;
         this.#z = v.z ?? 0;
+        this.#speed = v.speed ?? 0;
         this.#floors = v.floors ?? [];
+        this.#north = v.north ?? [];
+        this.#west = v.west ?? [];
         this.#volumes = v.volumes ?? [];
-        this.#floorsSpeed = v.floorsSpeed ?? 0;
-        this.#volumesSpeed = v.volumesSpeed ?? 0;
         this.#walkable = v.walkable ?? false;
+        this.#walkableNorth = v.walkableNorth ?? true;
+        this.#walkableWest = v.walkableWest ?? true;
         return this;
     }
 }
