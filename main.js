@@ -34,8 +34,8 @@ function start(){
     mapView.select("heros");
 
     // Repères de mise au point, à réactiver au besoin.
-    mapView.Draw.showGrid = false;
-    mapView.Draw.showCaseNumbers = false;
+    mapView.Draw.showGrid = true;
+    mapView.Draw.showCaseNumbers = true;
 
     let controlInfoMapView = (new FactoryControlInfoMapView).create(10, 10, 425, 275);
     controlInfoMapView.id = "infoMapView";

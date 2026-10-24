@@ -119,14 +119,14 @@ export class DrawMapView extends Draw {
     }
 
     /**
-     * Flancs du cube : west à gauche de l'écran, north à droite.
-     * Ils montent d'une case au-dessus du losange de sol.
+     * Murs du fond du losange, une case au-dessus du sol.
+     * west = face haut-gauche (vers x−1), north = face haut-droite (vers y−1).
      */
     drawWalls(paint, cube, sx, sy, sizeCase){
         const top = paint.losange(sx, sy - sizeCase, sizeCase);
         const base = paint.losange(sx, sy, sizeCase);
-        const west = [top[3], top[2], base[2], base[3]];
-        const north = [top[1], top[2], base[2], base[1]];
+        const west = [top[3], top[0], base[0], base[3]];
+        const north = [top[0], top[1], base[1], base[0]];
         const x = sx - sizeCase;
         const y = sy - sizeCase;
         const width = sizeCase * 2;

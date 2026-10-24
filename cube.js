@@ -11,9 +11,10 @@ export class Cube{
     #north = [];
     #west = [];
     #volumes = [];
-    #walkable = false;
-    #openNorth = true;
-    #openWest = true;
+    #floorOpen = true;
+    #northOpen = true;
+    #westOpen = true;
+    #walkable = true;
 
     constructor(options = {}){
         this.fromJSON(options);
@@ -34,10 +35,10 @@ export class Cube{
     set volumes(value){ this.#volumes = value ?? []; }
     get walkable(){ return this.#walkable; }
     set walkable(value){ this.#walkable = !!value; }
-    get openNorth(){ return this.#openNorth; }
-    set openNorth(value){ this.#openNorth = !!value; }
-    get openWest(){ return this.#openWest; }
-    set openWest(value){ this.#openWest = !!value; }
+    get northOpen(){ return this.#northOpen; }
+    set northOpen(value){ this.#northOpen = !!value; }
+    get westOpen(){ return this.#westOpen; }
+    set westOpen(value){ this.#westOpen = !!value; }
 
     /**
      * Écrit dans l'objet json. type/version viennent de la classe réelle
@@ -55,9 +56,10 @@ export class Cube{
         json.north = this.#north;
         json.west = this.#west;
         json.volumes = this.#volumes;
+        json.northOpen = this.#northOpen;
+        json.westOpen = this.#westOpen;
+        json.floorOpen = this.#floorOpen;
         json.walkable = this.#walkable;
-        json.openNorth = this.#openNorth;
-        json.openWest = this.#openWest;
         return json;
     }
 
@@ -71,9 +73,10 @@ export class Cube{
         this.#north = v.north ?? [];
         this.#west = v.west ?? [];
         this.#volumes = v.volumes ?? [];
-        this.#walkable = v.walkable ?? false;
-        this.#openNorth = v.openNorth ?? true;
-        this.#openWest = v.openWest ?? true;
+        this.#northOpen = v.northOpen ?? true;
+        this.#westOpen = v.westOpen ?? true;
+        this.#floorOpen = v.floorOpen ?? true;
+        this.#walkable = v.walkable ?? true;
         return this;
     }
 }

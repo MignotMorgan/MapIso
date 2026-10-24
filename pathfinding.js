@@ -1,4 +1,5 @@
 import { Location } from './point.js';
+import { Direction } from './entityMove.js';
 
 /**
  * Un nœud de recherche : un cube atteint, plus le nœud d'où l'on vient.
@@ -139,15 +140,10 @@ export class Pathfinding{
                 const key = Pathfinding.#key(nx, ny, nz);
                 if(this.#visited.has(key)) continue;
 
+                const from = this.findCube(node.x, node.y, node.z);
                 const cube = this.findCube(nx, ny, nz);
-                if(cube === null || !cube.walkable) continue;
-
-                // Changement d'étage ou diagonale : on frôle des cases voisines,
-                // il faut vérifier qu'elles laissent passer.
-                if(offset.z !== 0 || (offset.x !== 0 && offset.y !== 0)){
-                    const corner = new Corner(node.x, node.y, node.z, offset, (wx, wy, wz) => this.findCube(wx, wy, wz));
-                    if(!corner.canPass()) continue;
-                }
+                const cross = new Cross(from, cube, (x, y, z) => this.findCube(x, y, z));
+                if(!cross.crossable()) continue;
 
                 this.#visited.add(key);
                 const next = new PathNode(cube.x, cube.y, cube.z, node);
@@ -242,40 +238,243 @@ export class Pathfinding{
  */
 export class Corner{
 
-    #axeX = null;
-    #axeY = null;
-    #axeD = null;
-    #head = null;
+    #axeX = null; // cube voisin en X, éventuellement à l'étage d'arrivée
+    #axeY = null; // cube voisin en Y, éventuellement à l'étage d'arrivée
+    #axeD = null; // cube de la diagonale, entre le départ et l'arrivée
+    #head = null; // cube pile au-dessus du départ, seulement quand on monte
 
     constructor(wx, wy, wz, offset, findCube){
+        // wx, wy, wz : case de départ. offset : pas (−1, 0 ou 1) vers l'arrivée.
+        // findCube : callback, pour ne pas dépendre de WorldMap ici.
         if (offset.z > 0){
-            // On monte : on traverse le palier supérieur, et sa propre verticale.
-            this.#axeX = findCube(wx + offset.x, wy, wz + offset.z);
-            this.#axeY = findCube(wx, wy + offset.y, wz + offset.z);
-            this.#axeD = findCube(wx + offset.x, wy + offset.y, wz + offset.z);
-            this.#head = findCube(wx, wy, wz + offset.z);
+            // On monte : les cases qu'on frôle sont déjà à l'étage supérieur.
+            this.#axeX = findCube(wx + offset.x, wy, wz + offset.z); // voisin X au palier du dessus
+            this.#axeY = findCube(wx, wy + offset.y, wz + offset.z); // voisin Y au palier du dessus
+            this.#axeD = findCube(wx + offset.x, wy + offset.y, wz + offset.z); // diagonale au palier du dessus
+            this.#head = findCube(wx, wy, wz + offset.z); // plafond : même x,y, un étage plus haut
         } else {
-            this.#axeX = findCube(wx + offset.x, wy, wz);
-            this.#axeY = findCube(wx, wy + offset.y, wz);
-            this.#axeD = findCube(wx + offset.x, wy + offset.y, wz);
+            // Même étage, ou descente : on frôle les voisins du palier actuel.
+            // En descendant, l'arrivée (plus bas) a déjà été testée walkable dans search.
+            this.#axeX = findCube(wx + offset.x, wy, wz); // voisin X au même z
+            this.#axeY = findCube(wx, wy + offset.y, wz); // voisin Y au même z
+            this.#axeD = findCube(wx + offset.x, wy + offset.y, wz); // diagonale au même z
+            // #head reste null : pas de plafond à percer quand on ne monte pas
         }
     }
 
-    get axeX(){ return this.#axeX; }
-    get axeY(){ return this.#axeY; }
-    get axeD(){ return this.#axeD; }
-    get head(){ return this.#head; }
+    get axeX(){ return this.#axeX; } // lecture du voisin X
+    get axeY(){ return this.#axeY; } // lecture du voisin Y
+    get axeD(){ return this.#axeD; } // lecture de la diagonale
+    get head(){ return this.#head; } // lecture du cube au-dessus, ou null
 
     /** Un cube présent et non franchissable barre la route ; le vide non. */
-    static blocked(cube){ return cube !== null && !cube.walkable; }
+    static blocked(cube){ return cube !== null && !cube.walkable; } // null = vide = on passe
 
     canPass(){
-        // La case qu'on traverse en chemin.
-        if (Corner.blocked(this.#axeD)) return false;
-        // En montant, on ne passe pas à travers un plafond.
-        if (Corner.blocked(this.#head)) return false;
-        // Les deux côtés pleins = coin fermé, on couperait à travers un mur.
-        if (Corner.blocked(this.#axeX) && Corner.blocked(this.#axeY)) return false;
+        if (Corner.blocked(this.#axeD)) return false; // la diagonale est un mur plein
+        if (Corner.blocked(this.#head)) return false; // on ne traverse pas un plafond walkable:false
+        if (Corner.blocked(this.#axeX) && Corner.blocked(this.#axeY)) return false; // deux côtés pleins = coin fermé
+        return true; // vide, un seul côté, ou tête libre : le pas est possible
+    }
+}
+
+export class Cross{
+    #source = null; 
+    #destination = null; 
+    #findCube = null; 
+
+    constructor(source, destination, findCube = null){
+        this.#source = source; 
+        this.#destination = destination; 
+        this.#findCube = findCube; 
+    }
+
+    get source(){ return this.#source; } 
+    get destination(){ return this.#destination; } 
+
+    #cube(x, y, z){ return this.#findCube === null ? null : this.#findCube(x, y, z); } 
+
+    #floorOpen(x, y, z){ 
+        const cube = this.#cube(x, y, z);
+        return cube === null ? true : cube.floorOpen; 
+    }
+    #northOpen(x, y, z){ 
+        const cube = this.#cube(x, y, z);
+        return cube === null ? true : cube.northOpen; 
+    }
+    #westOpen(x, y, z){ 
+        const cube = this.#cube(x, y, z);
+        return cube === null ? true : cube.westOpen; 
+    }
+
+    crossable(){
+        /* plus tard gere les ascenseurs. */
+        if(this.#destination === null || !this.#destination.walkable) return false;
+        const direction = Direction.between(this.#source.x, this.#source.y, this.#destination.x, this.#destination.y);
+
+        switch (direction) {
+            case Direction.NORTH:
+                return this.#crossNorth();
+            case Direction.WEST:
+                return this.#crossWest();
+            case Direction.SOUTH:
+                return this.#crossSouth();
+            case Direction.EAST:
+                return this.#crossEast();
+            case Direction.NORTH_WEST:
+                return this.#crossNorthWest();
+            case Direction.SOUTH_WEST:
+                return this.#crossSouthWest();
+            case Direction.SOUTH_EAST:
+                return this.#crossSouthEast();
+            case Direction.NORTH_EAST:
+                return this.#crossNorthEast();
+            default:
+                return false;
+        }
+    }
+    //(x, y-1)
+    #crossNorth(){
+        if (this.#destination.z === this.#source.z){
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z)) return false;
+        }
+        else if (this.#destination.z > this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+        }
+        else if (this.#destination.z <this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y-1, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z)) return false;
+        }
+        return true;
+    }
+    //(x+1, y)
+    #crossEast(){
+        if (this.#destination.z === this.#source.z){
+            if (!this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z)) return false;
+        }
+        else if (this.#destination.z > this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z+1)) return false;
+        }
+        else if (this.#destination.z < this.#source.z){
+            if (!this.#floorOpen(this.#source.x+1, this.#source.y, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z)) return false;
+        }
+        return true;
+    }
+    //(x, y+1)
+    #crossSouth(){
+        if (this.#destination.z === this.#source.z){
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z)) return false;
+        }
+        else if (this.#destination.z > this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z+1)) return false;
+        }
+        else if (this.#destination.z < this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y+1, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z)) return false;
+        }
+        return true;
+    }
+    //(x-1, y)
+    #crossWest(){
+        if (this.#destination.z === this.#source.z){
+            if (!this.#westOpen(this.#source.x, this.#source.y, this.#source.z)) return false;
+        }
+        else if (this.#destination.z > this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#westOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+        }
+        else if (this.#destination.z < this.#source.z){
+            if (!this.#floorOpen(this.#source.x-1, this.#source.y, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x, this.#source.y, this.#source.z)) return false;
+        }
+        return true;
+    }
+    //(x+1, y-1)
+    #crossNorthEast(){
+        if (this.#destination.z === this.#source.z){
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#northOpen(this.#source.x+1, this.#source.y, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x+1, this.#source.y-1, this.#source.z)) return false;
+        }
+        else if (this.#destination.z > this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z+1) && !this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z+1) && !this.#northOpen(this.#source.x+1, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z+1) && !this.#westOpen(this.#source.x+1, this.#source.y-1, this.#source.z+1)) return false;
+        }
+            else if (this.#destination.z < this.#source.z){
+            if (!this.#floorOpen(this.#source.x+1, this.#source.y-1, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#northOpen(this.#source.x+1, this.#source.y, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x+1, this.#source.y-1, this.#source.z)) return false;
+        }
+        return true;
+    }
+    //(x+1, y+1)
+    #crossSouthEast(){
+        if (this.#destination.z === this.#source.z){
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z) && !this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z) && !this.#northOpen(this.#source.x+1, this.#source.y+1, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x+1, this.#source.y+1, this.#source.z)) return false;
+        }       
+        else if (this.#destination.z > this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z+1) && !this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z+1) && !this.#northOpen(this.#source.x+1, this.#source.y+1, this.#source.z+1)) return false;
+            if (!this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z+1) && !this.#westOpen(this.#source.x+1, this.#source.y+1, this.#source.z+1)) return false;
+        }
+        else if (this.#destination.z < this.#source.z){
+            if (!this.#floorOpen(this.#source.x+1, this.#source.y+1, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z) && !this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z) && !this.#northOpen(this.#source.x+1, this.#source.y+1, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x+1, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x+1, this.#source.y+1, this.#source.z)) return false;
+        }
+        return true;
+    }
+    //(x-1, y+1)
+    #crossSouthWest(){
+        if (this.#destination.z === this.#source.z){
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z) && !this.#westOpen(this.#source.x, this.#source.y, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z) && !this.#northOpen(this.#source.x-1, this.#source.y+1, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x, this.#source.y+1, this.#source.z)) return false;
+        }
+        else if (this.#destination.z > this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z+1) && !this.#westOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z+1) && !this.#northOpen(this.#source.x-1, this.#source.y+1, this.#source.z+1)) return false;
+            if (!this.#westOpen(this.#source.x, this.#source.y, this.#source.z+1) && !this.#westOpen(this.#source.x, this.#source.y+1, this.#source.z+1)) return false;
+        }
+        else if (this.#destination.z < this.#source.z){
+            if (!this.#floorOpen(this.#source.x-1, this.#source.y+1, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z) && !this.#westOpen(this.#source.x, this.#source.y, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y+1, this.#source.z) && !this.#northOpen(this.#source.x-1, this.#source.y+1, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x, this.#source.y+1, this.#source.z)) return false;
+        }
+        return true;
+    }
+    //(x-1, y-1)
+    #crossNorthWest(){
+        if (this.#destination.z === this.#source.z){
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x, this.#source.y, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#northOpen(this.#source.x-1, this.#source.y, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x, this.#source.y-1, this.#source.z)) return false;
+        }
+        else if (this.#destination.z > this.#source.z){
+            if (!this.#floorOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z+1) && !this.#westOpen(this.#source.x, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z+1) && !this.#northOpen(this.#source.x-1, this.#source.y, this.#source.z+1)) return false;
+            if (!this.#westOpen(this.#source.x, this.#source.y, this.#source.z+1) && !this.#westOpen(this.#source.x, this.#source.y-1, this.#source.z+1)) return false;
+        }
+        else if (this.#destination.z < this.#source.z){
+            if (!this.#floorOpen(this.#source.x-1, this.#source.y-1, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x, this.#source.y, this.#source.z)) return false;
+            if (!this.#northOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#northOpen(this.#source.x-1, this.#source.y, this.#source.z)) return false;
+            if (!this.#westOpen(this.#source.x, this.#source.y, this.#source.z) && !this.#westOpen(this.#source.x, this.#source.y-1, this.#source.z)) return false;
+        }
         return true;
     }
 }
