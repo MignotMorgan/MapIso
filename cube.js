@@ -35,6 +35,8 @@ export class Cube{
     set volumes(value){ this.#volumes = value ?? []; }
     get walkable(){ return this.#walkable; }
     set walkable(value){ this.#walkable = !!value; }
+    get floorOpen(){ return this.#floorOpen; }
+    set floorOpen(value){ this.#floorOpen = !!value; }
     get northOpen(){ return this.#northOpen; }
     set northOpen(value){ this.#northOpen = !!value; }
     get westOpen(){ return this.#westOpen; }
