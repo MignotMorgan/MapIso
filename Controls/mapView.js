@@ -409,7 +409,7 @@ export class MapView extends Control{
     }
     /** Pièces contenant ce point : c'est la carte qui sait, on lui demande. */
     openRoomsFrom(wx, wy, wz){
-        this.#openRooms = this.worldMap === null ? [] : this.worldMap.roomsAt(wx, wy, wz);
+        this.#openRooms = this.worldMap === null ? [] : this.worldMap.findRooms(wx, wy, wz);
         this.#createCubes = true;
     }
     /** Ce cube fait-il partie d'un plafond à masquer ? hideWalls (inset) décide du sort des murs. */

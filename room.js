@@ -15,6 +15,7 @@ export class Room{
     static type = "Room";
     static version = 1;
 
+    #id = ""
     #x = 0;
     #y = 0;
     #z = 0;
@@ -26,6 +27,7 @@ export class Room{
         this.fromJSON(options);
     }
 
+    get id(){ return this.#id; }
     get x(){ return this.#x; }
     get y(){ return this.#y; }
     get z(){ return this.#z; }
@@ -55,6 +57,7 @@ export class Room{
         if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
         json.type = this.constructor.type;
         json.version = this.constructor.version;
+        json.id = this.#id;
         json.x = this.#x;
         json.y = this.#y;
         json.z = this.#z;
@@ -66,6 +69,7 @@ export class Room{
 
     fromJSON(json){
         const v = json ?? {};
+        this.#id = v.id ?? "";
         this.#x = v.x ?? 0;
         this.#y = v.y ?? 0;
         this.#z = v.z ?? 0;

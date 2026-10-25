@@ -1,4 +1,7 @@
 import { CoreMapView } from './Controls/Base/coreMapView.js';
+import { Cube } from './cube.js';
+import { Entity } from './entity.js';
+import { Room } from './room.js';
 import { Textures } from './texture.js';
 import { WorldMap } from './worldMap.js';
 
@@ -49,7 +52,9 @@ export class DemoWorld{
             width: this.#width, height: this.#height, depth: this.#depth
         });
 
-        worldMap.fillFloor(0, { walkable:true, floors:["herbe"], floorOpen:false });
+        for(let x = 0; x < this.#width; x++)
+            for(let y = 0; y < this.#height; y++)
+                this.#put(worldMap, x, y, 0, { walkable:true, floors:["herbe"] });
         this.pond(worldMap);
         this.pondSouth(worldMap);
         this.path(worldMap);
@@ -107,7 +112,10 @@ export class DemoWorld{
             wall: "bois", floor: "plancher", doorX: 14, doorY: bottom
         });
         this.#roof(worldMap, left, top, right, bottom, 1, "toit");
-        worldMap.addRoom(left, top, 0, right - left + 1, bottom - top + 1, 1);
+        worldMap.addRoom(CoreMapView.FactoryWorld.create({
+            type: Room.type, id: "cottage", x: left, y: top, z: 0,
+            width: right - left + 1, height: bottom - top + 1, depth: 1
+        }));
     }
 
     /**
@@ -143,7 +151,10 @@ export class DemoWorld{
         this.#roof(worldMap, left, top, right, bottom, 6, "ardoise");
 
         for(let i = 0; i < levels.length; i++)
-            worldMap.addRoom(left, top, levels[i], width, height, 2);
+            worldMap.addRoom(CoreMapView.FactoryWorld.create({
+                type: Room.type, id: "habitation" + levels[i],
+                x: left, y: top, z: levels[i], width, height, depth: 2
+            }));
     }
 
     /**
@@ -180,32 +191,32 @@ export class DemoWorld{
             [7,28],[20,30],[22,34],[28,26],[32,32]
         ];
         for(let i = 0; i < spots.length; i++)
-            worldMap.spawn(spots[i][0], spots[i][1], 0, {
+            this.#spawn(worldMap, spots[i][0], spots[i][1], 0, {
                 id: "arbre" + i, sprite:"arbre", width:1, height:3, canTarget:true
             });
     }
 
     props(worldMap){
-        worldMap.spawn(6, 4, 0,  { id:"baril1",  sprite:"baril",  width:1, height:1, canTarget:true });
-        worldMap.spawn(15, 6, 0, { id:"baril2",  sprite:"baril",  width:1, height:1, canTarget:true });
-        worldMap.spawn(16, 23, 0,{ id:"caisse1", sprite:"caisse", width:1, height:1, canTarget:true });
-        worldMap.spawn(17, 24, 0,{ id:"caisse2", sprite:"caisse", width:1, height:1, canTarget:true });
-        worldMap.spawn(21, 12, 0,{ id:"rocher1", sprite:"rocher", width:1, height:1, canTarget:true });
-        worldMap.spawn(4, 20, 0, { id:"rocher2", sprite:"rocher", width:1, height:1, canTarget:true });
-        worldMap.spawn(9, 26, 0, { id:"buisson1",sprite:"buisson",width:1, height:1, canTarget:true });
-        worldMap.spawn(19, 32, 0,{ id:"buisson2",sprite:"buisson",width:1, height:1, canTarget:true });
-        worldMap.spawn(11, 34, 0,{ id:"buisson3",sprite:"buisson",width:1, height:1, canTarget:true });
+        this.#spawn(worldMap, 6, 4, 0,  { id:"baril1",  sprite:"baril",  width:1, height:1, canTarget:true });
+        this.#spawn(worldMap, 15, 6, 0, { id:"baril2",  sprite:"baril",  width:1, height:1, canTarget:true });
+        this.#spawn(worldMap, 16, 23, 0,{ id:"caisse1", sprite:"caisse", width:1, height:1, canTarget:true });
+        this.#spawn(worldMap, 17, 24, 0,{ id:"caisse2", sprite:"caisse", width:1, height:1, canTarget:true });
+        this.#spawn(worldMap, 21, 12, 0,{ id:"rocher1", sprite:"rocher", width:1, height:1, canTarget:true });
+        this.#spawn(worldMap, 4, 20, 0, { id:"rocher2", sprite:"rocher", width:1, height:1, canTarget:true });
+        this.#spawn(worldMap, 9, 26, 0, { id:"buisson1",sprite:"buisson",width:1, height:1, canTarget:true });
+        this.#spawn(worldMap, 19, 32, 0,{ id:"buisson2",sprite:"buisson",width:1, height:1, canTarget:true });
+        this.#spawn(worldMap, 11, 34, 0,{ id:"buisson3",sprite:"buisson",width:1, height:1, canTarget:true });
     }
 
     people(worldMap){
-        worldMap.spawnPlayer(20, 20, 0, { id:"heros",       sprite:"heros",      width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(14, 2, 0,  { id:"villageois",  sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(8,  7, 1,  { id:"guetteur",    sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(2,  3, 0,  { id:"pecheur",     sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(23, 16, 0, { id:"promeneur",   sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(13, 29, 0, { id:"aubergiste",  sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(16, 28, 2, { id:"etage",       sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(14, 30, 4, { id:"combles",     sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        this.#spawnPlayer(worldMap, 20, 20, 0, { id:"heros",       sprite:"heros",      width:1, height:2, canMove:true, canTarget:true });
+        this.#spawn(worldMap, 14, 2, 0,  { id:"villageois",  sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        this.#spawn(worldMap, 8,  7, 1,  { id:"guetteur",    sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        this.#spawn(worldMap, 2,  3, 0,  { id:"pecheur",     sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        this.#spawn(worldMap, 23, 16, 0, { id:"promeneur",   sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        this.#spawn(worldMap, 13, 29, 0, { id:"aubergiste",  sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        this.#spawn(worldMap, 16, 28, 2, { id:"etage",       sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        this.#spawn(worldMap, 14, 30, 4, { id:"combles",     sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
     }
 
     /**
@@ -257,8 +268,18 @@ export class DemoWorld{
      * a floorOpen fermé : on ne tombe pas à travers.
      */
     #put(worldMap, x, y, z, options){
-        const cube = { ...options };
+        const cube = { ...options, x, y, z, type: Cube.type };
         if(z === 0 || options.floors != null) cube.floorOpen = false;
-        worldMap.setCube(x, y, z, cube);
+        worldMap.addCube(CoreMapView.FactoryWorld.create(cube));
+    }
+
+    /** Crée un PNJ ou un objet et le donne à la carte. */
+    #spawn(worldMap, x, y, z, options){
+        worldMap.addEntity(CoreMapView.FactoryWorld.create({...options, x, y, z, type: options.type ?? Entity.type}));
+    }
+
+    /** Crée le joueur et le donne à la carte. */
+    #spawnPlayer(worldMap, x, y, z, options){
+        worldMap.addPlayer(CoreMapView.FactoryWorld.create({...options, x, y, z, type: options.type ?? Entity.type}));
     }
 }
