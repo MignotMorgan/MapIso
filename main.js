@@ -35,7 +35,7 @@ function start(){
 
     // Repères de mise au point, à réactiver au besoin.
     mapView.Draw.showGrid = true;
-    mapView.Draw.showCaseNumbers = true;
+    mapView.Draw.showCaseNumbers = false;
 
     let controlInfoMapView = (new FactoryControlInfoMapView).create(10, 10, 425, 275);
     controlInfoMapView.id = "infoMapView";

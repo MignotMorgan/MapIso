@@ -225,59 +225,6 @@ export class Pathfinding{
     static #key(x, y, z){ return x + "," + y + "," + z; }
 }
 
-/**
- * Le passage entre deux cases n'est pas seulement une affaire de départ et
- * d'arrivée : on frôle des cases voisines en chemin, et elles peuvent barrer
- * la route. Corner regarde ces cases-là.
- *
- * Un cube absent, c'est du vide : le vide ne bloque rien, c'est même par là
- * qu'on descend d'une plateforme. Seul un cube présent et non franchissable
- * arrête le mouvement.
- *
- * findCube est injecté (Pathfinding.findCube) pour ne pas dépendre d'un global.
- */
-export class Corner{
-
-    #axeX = null; // cube voisin en X, éventuellement à l'étage d'arrivée
-    #axeY = null; // cube voisin en Y, éventuellement à l'étage d'arrivée
-    #axeD = null; // cube de la diagonale, entre le départ et l'arrivée
-    #head = null; // cube pile au-dessus du départ, seulement quand on monte
-
-    constructor(wx, wy, wz, offset, findCube){
-        // wx, wy, wz : case de départ. offset : pas (−1, 0 ou 1) vers l'arrivée.
-        // findCube : callback, pour ne pas dépendre de WorldMap ici.
-        if (offset.z > 0){
-            // On monte : les cases qu'on frôle sont déjà à l'étage supérieur.
-            this.#axeX = findCube(wx + offset.x, wy, wz + offset.z); // voisin X au palier du dessus
-            this.#axeY = findCube(wx, wy + offset.y, wz + offset.z); // voisin Y au palier du dessus
-            this.#axeD = findCube(wx + offset.x, wy + offset.y, wz + offset.z); // diagonale au palier du dessus
-            this.#head = findCube(wx, wy, wz + offset.z); // plafond : même x,y, un étage plus haut
-        } else {
-            // Même étage, ou descente : on frôle les voisins du palier actuel.
-            // En descendant, l'arrivée (plus bas) a déjà été testée walkable dans search.
-            this.#axeX = findCube(wx + offset.x, wy, wz); // voisin X au même z
-            this.#axeY = findCube(wx, wy + offset.y, wz); // voisin Y au même z
-            this.#axeD = findCube(wx + offset.x, wy + offset.y, wz); // diagonale au même z
-            // #head reste null : pas de plafond à percer quand on ne monte pas
-        }
-    }
-
-    get axeX(){ return this.#axeX; } // lecture du voisin X
-    get axeY(){ return this.#axeY; } // lecture du voisin Y
-    get axeD(){ return this.#axeD; } // lecture de la diagonale
-    get head(){ return this.#head; } // lecture du cube au-dessus, ou null
-
-    /** Un cube présent et non franchissable barre la route ; le vide non. */
-    static blocked(cube){ return cube !== null && !cube.walkable; } // null = vide = on passe
-
-    canPass(){
-        if (Corner.blocked(this.#axeD)) return false; // la diagonale est un mur plein
-        if (Corner.blocked(this.#head)) return false; // on ne traverse pas un plafond walkable:false
-        if (Corner.blocked(this.#axeX) && Corner.blocked(this.#axeY)) return false; // deux côtés pleins = coin fermé
-        return true; // vide, un seul côté, ou tête libre : le pas est possible
-    }
-}
-
 export class Cross{
     #source = null; 
     #destination = null; 
@@ -296,7 +243,7 @@ export class Cross{
 
     #floorOpen(x, y, z){ 
         const cube = this.#cube(x, y, z);
-        return cube === null ? true : cube.floorOpen; 
+        return cube === null ? true : cube.floorOpen;
     }
     #northOpen(x, y, z){ 
         const cube = this.#cube(x, y, z);
@@ -309,7 +256,7 @@ export class Cross{
 
     crossable(){
         /* plus tard gere les ascenseurs. */
-        if(this.#destination === null || !this.#destination.walkable) return false;
+        if(this.#source === null || this.#destination === null || !this.#destination.walkable) return false;
         const direction = Direction.between(this.#source.x, this.#source.y, this.#destination.x, this.#destination.y);
 
         switch (direction) {

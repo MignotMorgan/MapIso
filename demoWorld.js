@@ -4,7 +4,7 @@ import { WorldMap } from './worldMap.js';
 
 /**
  * Scène de démonstration : prairie, étangs, chemins, cottage, plateforme,
- * une habitation à plusieurs étages au sud, et des habitants.
+ * une habitation à plusieurs étages au sud, une colline, et des habitants.
  *
  * Tout passe par l'API publique de la carte : c'est le mode d'emploi d'un
  * futur éditeur.
@@ -49,13 +49,14 @@ export class DemoWorld{
             width: this.#width, height: this.#height, depth: this.#depth
         });
 
-        worldMap.fillFloor(0, { walkable:true, floors:["herbe"] });
+        worldMap.fillFloor(0, { walkable:true, floors:["herbe"], floorOpen:false });
         this.pond(worldMap);
         this.pondSouth(worldMap);
         this.path(worldMap);
         this.platform(worldMap);
         this.cottage(worldMap);
         this.habitation(worldMap);
+        this.hill(worldMap);
         this.garden(worldMap);
         this.trees(worldMap);
         this.props(worldMap);
@@ -67,33 +68,33 @@ export class DemoWorld{
     pond(worldMap){
         for(let x = 1; x <= 5; x++)
             for(let y = 0; y <= 4; y++)
-                worldMap.setCube(x, y, 0, { walkable:false, floors:["eau"] });
+                this.#put(worldMap, x, y, 0, { walkable:false, floors:["eau"] });
     }
 
     /** Un second plan d'eau, plus à l'est. */
     pondSouth(worldMap){
         for(let x = 22; x <= 26; x++)
             for(let y = 10; y <= 14; y++)
-                worldMap.setCube(x, y, 0, { walkable:false, floors:["eau"] });
+                this.#put(worldMap, x, y, 0, { walkable:false, floors:["eau"] });
     }
 
     /** Chemin de sable : cottage → sud, puis contour est jusqu'à la porte. */
     path(worldMap){
         for(let x = 6; x <= 14; x++)
-            worldMap.setCube(x, 5, 0, { walkable:true, floors:["sable"] });
+            this.#put(worldMap, x, 5, 0, { walkable:true, floors:["sable"] });
         for(let y = 6; y <= 24; y++)
-            worldMap.setCube(14, y, 0, { walkable:true, floors:["sable"] });
+            this.#put(worldMap, 14, y, 0, { walkable:true, floors:["sable"] });
         for(let y = 24; y <= 34; y++)
-            worldMap.setCube(19, y, 0, { walkable:true, floors:["sable"] });
+            this.#put(worldMap, 19, y, 0, { walkable:true, floors:["sable"] });
         for(let x = 14; x <= 19; x++)
-            worldMap.setCube(x, 34, 0, { walkable:true, floors:["sable"] });
+            this.#put(worldMap, x, 34, 0, { walkable:true, floors:["sable"] });
     }
 
     platform(worldMap){
         for(let x = 7; x <= 10; x++)
             for(let y = 6; y <= 8; y++){
-                worldMap.setCube(x, y, 0, { walkable:false, volumes:["pierre"] });
-                worldMap.setCube(x, y, 1, { walkable:true,  floors:["pierre"] });
+                this.#put(worldMap, x, y, 0, { walkable:false, volumes:["pierre"] });
+                this.#put(worldMap, x, y, 1, { walkable:true,  floors:["pierre"] });
             }
     }
 
@@ -110,41 +111,66 @@ export class DemoWorld{
     }
 
     /**
-     * Habitation de trois étages au sud. Une Room par niveau : on ne masque
-     * que ce qui est au-dessus de l'étage occupé. L'escalier est une colonne
-     * de cubes walkable (même x,y, z croissant) : le pathfinding autorise (0,0,1).
+     * Habitation de trois étages au sud. Un étage fait deux cubes :
+     * le plancher, puis le vide jusqu'au plancher suivant.
+     * La marche est dehors, au sud de la porte. Dedans, le toit de la
+     * diagonale écran la recouvrait, et la Room la masquait avec le plafond.
+     * On monte d'un cube vers cette marche, puis d'un cube vers le palier.
+     * Une Room par niveau : on ne masque que ce qui est au-dessus de l'étage occupé.
      */
     habitation(worldMap){
         const left = 10, top = 25, right = 18, bottom = 33;
-        const stairX = 12, stairY = 27;
         const width = right - left + 1;
         const height = bottom - top + 1;
+        const doorX = 14;
+        const stepX = doorX;
+        const stepY = bottom + 1;
+        const levels = [0, 2, 4];
 
-        this.#box(worldMap, left, top, right, bottom, 0, {
-            wall: "crepi", floor: "plancher", doorX: 14, doorY: bottom
-        });
-        this.#box(worldMap, left, top, right, bottom, 1, {
-            wall: "crepi", floor: "plancher"
-        });
-        this.#box(worldMap, left, top, right, bottom, 2, {
-            wall: "crepi", floor: "plancher"
-        });
-        this.#roof(worldMap, left, top, right, bottom, 3, "ardoise");
+        for(let i = 0; i < levels.length; i++){
+            const z = levels[i];
+            this.#box(worldMap, left, top, right, bottom, z, {
+                wall: "crepi", floor: "plancher",
+                doorX: z === 0 ? doorX : null,
+                doorY: z === 0 ? bottom : null,
+                landingX: i > 0 ? doorX : null,
+                landingY: i > 0 ? bottom : null
+            });
+            this.#rim(worldMap, left, top, right, bottom, z + 1, "crepi", doorX, bottom);
+            if(i < levels.length - 1)
+                this.#put(worldMap, stepX, stepY, z + 1, { walkable:true, floors:["pierre"] });
+        }
+        this.#roof(worldMap, left, top, right, bottom, 6, "ardoise");
 
-        for(let z = 0; z <= 2; z++)
-            worldMap.setCube(stairX, stairY, z, { walkable:true, floors:["pierre"] });
+        for(let i = 0; i < levels.length; i++)
+            worldMap.addRoom(left, top, levels[i], width, height, 2);
+    }
 
-        worldMap.addRoom(left, top, 0, width, height, 1);
-        worldMap.addRoom(left, top, 1, width, height, 1);
-        worldMap.addRoom(left, top, 2, width, height, 1);
+    /**
+     * Colline de cinq cubes de haut, à l'est.
+     * Chaque marche est à côté de la précédente : le cube juste au-dessus
+     * de la marche qu'on quitte reste vide, pour que la montée reste ouverte.
+     */
+    hill(worldMap){
+        const x0 = 30;
+        const y0 = 18;
+        for(let row = 0; row < 3; row++){
+            for(let h = 1; h <= 5; h++){
+                const x = x0 + h - 1;
+                const y = y0 + row;
+                for(let z = 1; z < h; z++)
+                    this.#put(worldMap, x, y, z, { walkable:false, volumes:["pierre"] });
+                this.#put(worldMap, x, y, h, { walkable:true, floors:["pierre"] });
+            }
+        }
     }
 
     /** Haie et quelques buissons le long de l'habitation. */
     garden(worldMap){
         for(let y = 25; y <= 33; y++)
-            worldMap.setCube(8, y, 0, { walkable:false, volumes:["bois"] });
+            this.#put(worldMap, 8, y, 0, { walkable:false, volumes:["bois"] });
         for(let x = 8; x <= 18; x++)
-            worldMap.setCube(x, 35, 0, { walkable:false, volumes:["bois"] });
+            this.#put(worldMap, x, 35, 0, { walkable:false, volumes:["bois"] });
     }
 
     trees(worldMap){
@@ -178,33 +204,61 @@ export class DemoWorld{
         worldMap.spawn(2,  3, 0,  { id:"pecheur",     sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
         worldMap.spawn(23, 16, 0, { id:"promeneur",   sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
         worldMap.spawn(13, 29, 0, { id:"aubergiste",  sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(16, 28, 1, { id:"etage",       sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
-        worldMap.spawn(14, 30, 2, { id:"combles",     sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        worldMap.spawn(16, 28, 2, { id:"etage",       sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
+        worldMap.spawn(14, 30, 4, { id:"combles",     sprite:"villageois", width:1, height:2, canMove:true, canTarget:true });
     }
 
     /**
      * Murs sur le périmètre, sol walkable à l'intérieur.
      * doorX/doorY : ouverture walkable (rez-de-chaussée).
+     * landingX/landingY : le mur devient un palier, pour entrer depuis la marche.
      */
     #box(worldMap, left, top, right, bottom, z, options){
         const wall = options.wall;
         const floor = options.floor;
         const doorX = options.doorX;
         const doorY = options.doorY;
+        const landingX = options.landingX;
+        const landingY = options.landingY;
         for(let x = left; x <= right; x++)
             for(let y = top; y <= bottom; y++){
                 const onWall = (x === left || x === right || y === top || y === bottom);
                 const door = (doorX != null && x === doorX && y === doorY);
-                if(onWall && !door)
-                    worldMap.setCube(x, y, z, { walkable:false, volumes:[wall] });
+                const landing = (landingX != null && x === landingX && y === landingY);
+                if(onWall && !door && !landing)
+                    this.#put(worldMap, x, y, z, { walkable:false, volumes:[wall] });
                 else
-                    worldMap.setCube(x, y, z, { walkable:true, floors:[floor] });
+                    this.#put(worldMap, x, y, z, { walkable:true, floors:[floor] });
+            }
+    }
+
+    /**
+     * Second cube d'un étage : seulement les murs, le vide intérieur reste ouvert.
+     * openX/openY : pas de linteau, le cube au-dessus de la porte reste vide
+     * pour que la montée vers la marche ne bute pas sur un plancher fermé.
+     */
+    #rim(worldMap, left, top, right, bottom, z, wall, openX, openY){
+        for(let x = left; x <= right; x++)
+            for(let y = top; y <= bottom; y++){
+                const onWall = (x === left || x === right || y === top || y === bottom);
+                if(onWall && !(x === openX && y === openY))
+                    this.#put(worldMap, x, y, z, { walkable:false, volumes:[wall] });
             }
     }
 
     #roof(worldMap, left, top, right, bottom, z, name){
         for(let x = left; x <= right; x++)
             for(let y = top; y <= bottom; y++)
-                worldMap.setCube(x, y, z, { walkable:false, floors:[name] });
+                this.#put(worldMap, x, y, z, { walkable:false, floors:[name] });
+    }
+
+    /**
+     * Pose un cube. Tout cube au sol (z = 0), et toute surface de plancher,
+     * a floorOpen fermé : on ne tombe pas à travers.
+     */
+    #put(worldMap, x, y, z, options){
+        const cube = { ...options };
+        if(z === 0 || options.floors != null) cube.floorOpen = false;
+        worldMap.setCube(x, y, z, cube);
     }
 }
