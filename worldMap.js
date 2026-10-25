@@ -66,40 +66,27 @@ export class WorldMap{
     // === GRILLE ===
 
     /** La cellule existe-t-elle sur cette carte ? À appeler avant tout accès direct à cubes. */
-    inBounds(x, y, z){
+    contains(x, y, z){
         return 0 <= x && x < this.#width
             && 0 <= y && y < this.#height
             && 0 <= z && z < this.#depth;
     }
 
     /** Cube d'une cellule, en O(1). null si la cellule est vide ou hors carte. */
-    cubeAt(x, y, z){
-        if(!this.inBounds(x, y, z)) return null;
+    findCube(x, y, z){
+        if(!this.contains(x, y, z)) return null;
         return this.#cubes[x][y][z] ?? null;
-    }
-
-    /** Crée un cube et le place dans la grille. options : floors, volumes, walkable… Retourne le cube. */
-    setCube(x, y, z, options = {}){
-        if(!this.inBounds(x, y, z)) return null;
-        const cube = CoreMapView.FactoryWorld.create({...options, x, y, z, type: options.type ?? Cube.type});
-        this.#cubes[x][y][z] = cube;
-        return cube;
     }
 
     /** Place un cube déjà construit (chargement réseau, copier-coller de l'éditeur). */
     addCube(cube){
-        if(cube === null) return null;
-        const x = cube.x;
-        const y = cube.y;
-        const z = cube.z;
-        if(!this.inBounds(x, y, z)) return null;
-        this.#cubes[x][y][z] = cube;
-        return cube;
+        if(cube !== null && this.contains(cube.x, cube.y, cube.z))
+            this.#cubes[cube.x][cube.y][cube.z] = cube;
     }
 
     /** Vide une cellule. Retourne le cube retiré, ou null. */
     removeCube(x, y, z){
-        const cube = this.cubeAt(x, y, z);
+        const cube = this.findCube(x, y, z);
         if(cube !== null) this.#cubes[x][y][z] = null;
         return cube;
     }
@@ -122,7 +109,7 @@ export class WorldMap{
     topCube(x, y){
         for(let z = this.#depth - 1; z >= 0; z--)
         {
-            const cube = this.cubeAt(x, y, z);
+            const cube = this.findCube(x, y, z);
             if(cube !== null) return cube;
         }
         return null;
@@ -133,7 +120,7 @@ export class WorldMap{
         if(z < 0 || z >= this.#depth) return;
         for(let x = 0; x < this.#width; x++)
             for(let y = 0; y < this.#height; y++)
-                this.setCube(x, y, z, options);
+                this.addCube(x, y, z, options);
     }
 
     /** Parcourt les cellules occupées : worldMap.forEachCube(cube => …). */

@@ -425,12 +425,12 @@ export class MapView extends Control{
      */
     findCube(wx, wy, wz){
         if(this.worldMap === null) return null;
-        return this.worldMap.cubeAt(wx, wy, wz);
+        return this.worldMap.findCube(wx, wy, wz);
     }
     /** Ce point fait-il partie du monde ? (différent de « la donnée est chargée »). */
     inWorld(wx, wy, wz, worldMap = this.worldMap){
         if(worldMap === null) return false;
-        return worldMap.inBounds(wx, wy, wz);
+        return worldMap.contains(wx, wy, wz);
     }
     /** Case du viewport (losange affiché), pas un cube monde. */
     findCase(cx, cy){

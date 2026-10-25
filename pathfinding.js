@@ -53,7 +53,7 @@ export class PathNode{
  * Usage : new Pathfinding(x, y, z, worldMap).moveTo(entity, destX, destY, destZ)
  * Le trajet est écrit dans entity.entityMove.path.
  *
- * worldMap doit exposer cubeAt(x, y, z) — c'est tout. Le moteur ignore donc
+ * worldMap doit exposer findCube(x, y, z) — c'est tout. Le moteur ignore donc
  * comment la carte range ses cubes, ce qui la rend remplaçable (une carte
  * unique aujourd'hui, un assemblage de cartes plus tard).
  */
@@ -98,7 +98,7 @@ export class Pathfinding{
     /** Cube du monde. On demande à la carte, on ne fouille jamais sa grille nous-même. */
     findCube(wx, wy, wz){
         if(this.#worldMap === null) return null;
-        return this.#worldMap.cubeAt(wx, wy, wz);
+        return this.#worldMap.findCube(wx, wy, wz);
     }
 
     /** Cette case a-t-elle déjà été explorée ? Réponse immédiate, quelle que soit la taille du monde. */
