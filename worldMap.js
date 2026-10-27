@@ -33,8 +33,11 @@ export class WorldMap{
     /** Version du document dont cette carte est issue, ou la version courante si elle est neuve. */
     get version(){ return this.#version; }
     get width(){ return this.#width; }
+    set width(value){ this.#width = value; }
     get height(){ return this.#height; }
+    set height(value){ this.#height = value; }
     get depth(){ return this.#depth; }
+    set depth(value){ this.#depth = value; }
     get cubes(){ return this.#cubes; }
     get players(){ return this.#players; }
     get entities(){ return this.#entities; }
@@ -96,43 +99,47 @@ export class WorldMap{
     }
     addCube(cube){
         if(cube !== null && (cube instanceof Cube) && this.contains(cube.x, cube.y, cube.z))
-            this.#cubes[cube.x][cube.y][cube.z] = cube;
+            this.cubes[cube.x][cube.y][cube.z] = cube;
     }
     removeCube(x, y, z){
         const cube = this.findCube(x, y, z);
-        if(cube !== null) this.#cubes[x][y][z] = null;
+        if(cube !== null) this.cubes[x][y][z] = null;
         return cube;
     }
 
     // === ENTITÉS ===
     addPlayer(entity){
-        if (entity !== null && (entity instanceof Entity) && !this.findEntity(entity.id))
-            this.#players[this.#players.length] = entity;
+        if (entity !== null && (entity instanceof Entity) && !this.findEntity(entity.id)){
+            entity.worldMap = this;
+            this.players[this.players.length] = entity;
+        }
     }
     addEntity(entity){
-        if (entity !== null && (entity instanceof Entity) && !this.findEntity(entity.id))
-            this.#entities[this.#entities.length] = entity;
+        if (entity !== null && (entity instanceof Entity) && !this.findEntity(entity.id)){
+            entity.worldMap = this;
+            this.entities[this.entities.length] = entity;
+        }
     }
     findEntity(id){
-        for(let i = 0; i < this.#players.length; i++)
-            if(this.#players[i] != null && this.#players[i].id === id)
-                return this.#players[i];
+        for(let i = 0; i < this.players.length; i++)
+            if(this.players[i] != null && this.players[i].id === id)
+                return this.players[i];
 
-        for(let i = 0; i < this.#entities.length; i++)
-            if(this.#entities[i] != null && this.#entities[i].id === id)
-                return this.#entities[i];
+        for(let i = 0; i < this.entities.length; i++)
+            if(this.entities[i] != null && this.entities[i].id === id)
+                return this.entities[i];
 
         return null;
     }
     indexPlayer(id){
-        for(let i = 0; i < this.#players.length; i++)
-            if(this.#players[i] !== null && this.#players[i].id === id)
+        for(let i = 0; i < this.players.length; i++)
+            if(this.players[i] !== null && this.players[i].id === id)
                 return i;
         return -1;
     }
     indexEntity(id){
-        for(let i = 0; i < this.#entities.length; i++)
-            if(this.#entities[i] !== null && this.#entities[i].id === id)
+        for(let i = 0; i < this.entities.length; i++)
+            if(this.entities[i] !== null && this.entities[i].id === id)
                 return i;
         return -1;
     }
@@ -140,8 +147,8 @@ export class WorldMap{
         const index = this.indexPlayer(id);
         let entity = null
         if (index !== -1){
-            entity = this.#players[index];
-            this.#players[index] = null;
+            entity = this.players[index];
+            this.players[index] = null;
         }
         return entity;
     }
@@ -149,8 +156,8 @@ export class WorldMap{
         const index = this.indexEntity(id);
         let entity = null
         if (index !== -1){
-            entity = this.#entities[index];
-            this.#entities[index] = null;
+            entity = this.entities[index];
+            this.entities[index] = null;
         }
         return entity;
     }
@@ -158,24 +165,24 @@ export class WorldMap{
     // === PIÈCES ===
     addRoom(room){
         if (room !== null && (room instanceof Room) && !this.findRoom(room.id))
-            this.#rooms[this.#rooms.length] = room;
+            this.rooms[this.rooms.length] = room;
     }
     findRooms(wx, wy, wz){
         const list = [];
-        for(let i = 0; i < this.#rooms.length; i++)
-            if(this.#rooms[i] !== null && this.#rooms[i].contains(wx, wy, wz))
-                list[list.length] = this.#rooms[i];
+        for(let i = 0; i < this.rooms.length; i++)
+            if(this.rooms[i] !== null && this.rooms[i].contains(wx, wy, wz))
+                list[list.length] = this.rooms[i];
         return list;
     } 
     findRoom(id){
-        for(let i = 0; i < this.#rooms.length; i++)
-            if(this.#rooms[i] !== null && this.#rooms[i].id === id)
-                return this.#rooms[i];
+        for(let i = 0; i < this.rooms.length; i++)
+            if(this.rooms[i] !== null && this.rooms[i].id === id)
+                return this.rooms[i];
         return null;
     }
     indexRoom(id){
-        for(let i = 0; i < this.#rooms.length; i++)
-            if(this.#rooms[i] !== null && this.#rooms[i].id === id)
+        for(let i = 0; i < this.rooms.length; i++)
+            if(this.rooms[i] !== null && this.rooms[i].id === id)
                 return i;
         return -1;
     }
@@ -183,8 +190,8 @@ export class WorldMap{
         const index = this.indexRoom(id);
         let room = null
         if (index !== -1){
-            room = this.#rooms[index];
-            this.#rooms[index] = null;
+            room = this.rooms[index];
+            this.rooms[index] = null;
         }
         return room;
     }
@@ -205,45 +212,38 @@ export class WorldMap{
     toJSON(json){
         if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
         json.type = this.constructor.type;
-        json.version = this.#version;
-        json.name = this.#name;
-        json.width = this.#width;
-        json.height = this.#height;
-        json.depth = this.#depth;
+        json.version = this.version;
+        json.name = this.name;
+        json.width = this.width;
+        json.height = this.height;
+        json.depth = this.depth;
         json.cubes = [];
-        for(let x = 0; x < this.#width; x++)
-            for(let y = 0; y < this.#height; y++)
-                for(let z = 0; z < this.#depth; z++){
-                    const cube = this.#cubes[x][y][z];
+        for(let x = 0; x < this.width; x++)
+            for(let y = 0; y < this.height; y++)
+                for(let z = 0; z < this.depth; z++){
+                    const cube = this.cubes[x][y][z];
                     if(cube !== null)
                         json.cubes[json.cubes.length] = cube.toJSON();
                     }
-        json.players = WorldMap.#toJsonList(this.#players);
-        json.entities = WorldMap.#toJsonList(this.#entities);
-        json.rooms = WorldMap.#toJsonList(this.#rooms);
+        json.players = WorldMap.#toJsonList(this.players);
+        json.entities = WorldMap.#toJsonList(this.entities);
+        json.rooms = WorldMap.#toJsonList(this.rooms);
         return json;
     }
 
     fromJSON(json){
-        const v = json ?? {};
-        this.#width = v.width ?? this.#width;
-        this.#height = v.height ?? this.#height;
-        this.#depth = v.depth ?? this.#depth;
-        this.#cubes = WorldMap.#emptyGrid(this.#width, this.#height, this.#depth);
-        this.#name = v.name ?? "";
-        this.#version = v.version ?? 1;
+        this.name = json.name;
+        this.width = json.width;
+        this.height = json.height;
+        this.depth = json.depth;
+        this.#cubes = WorldMap.#emptyGrid(this.width, this.height, this.depth);
         this.#players = [];
         this.#entities = [];
         this.#rooms = [];
-        const cubes = v.cubes ?? [];
-        for(let i = 0; i < cubes.length; i++) this.addCube(CoreMapView.FactoryWorld.create(cubes[i]));
-        const players = v.players ?? [];
-        for(let i = 0; i < players.length; i++) this.addPlayer(CoreMapView.FactoryWorld.create(players[i]));
-        const entities = v.entities ?? [];
-        for(let i = 0; i < entities.length; i++) this.addEntity(CoreMapView.FactoryWorld.create(entities[i]));
-        const rooms = v.rooms ?? [];
-        for(let i = 0; i < rooms.length; i++) this.addRoom(CoreMapView.FactoryWorld.create(rooms[i]));
-        return this;
+        for(let i = 0; i < json.cubes.length; i++) this.addCube(CoreMapView.FactoryWorld.create(json.cubes[i]));
+        for(let i = 0; i < json.players.length; i++) this.addPlayer(CoreMapView.FactoryWorld.create(json.players[i]));
+        for(let i = 0; i < json.entities.length; i++) this.addEntity(CoreMapView.FactoryWorld.create(json.entities[i]));
+        for(let i = 0; i < json.rooms.length; i++) this.addRoom(CoreMapView.FactoryWorld.create(json.rooms[i]));
     }
     
     static #toJsonList(list){

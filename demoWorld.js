@@ -49,7 +49,8 @@ export class DemoWorld{
     createWorldMap(){
         const worldMap = CoreMapView.FactoryWorld.create({
             type: WorldMap.type, name: "démo",
-            width: this.#width, height: this.#height, depth: this.#depth
+            width: this.#width, height: this.#height, depth: this.#depth,
+            cubes: [], players: [], entities: [], rooms: []
         });
 
         for(let x = 0; x < this.#width; x++)
@@ -269,17 +270,31 @@ export class DemoWorld{
      */
     #put(worldMap, x, y, z, options){
         const cube = { ...options, x, y, z, type: Cube.type };
-        if(z === 0 || options.floors != null) cube.floorOpen = false;
+        cube.speed = options.speed ?? 0;
+        cube.floors = options.floors ?? [];
+        cube.north = options.north ?? [];
+        cube.west = options.west ?? [];
+        cube.volumes = options.volumes ?? [];
+        cube.walkable = options.walkable ?? true;
+        cube.northOpen = options.northOpen ?? true;
+        cube.westOpen = options.westOpen ?? true;
+        cube.floorOpen = (z === 0 || options.floors != null) ? false : (options.floorOpen ?? true);
         worldMap.addCube(CoreMapView.FactoryWorld.create(cube));
     }
 
     /** Crée un PNJ ou un objet et le donne à la carte. */
     #spawn(worldMap, x, y, z, options){
-        worldMap.addEntity(CoreMapView.FactoryWorld.create({...options, x, y, z, type: options.type ?? Entity.type}));
+        worldMap.addEntity(CoreMapView.FactoryWorld.create({
+            ...options, x, y, z, type: options.type ?? Entity.type,
+            width: options.width ?? 1, height: options.height ?? 1
+        }));
     }
 
     /** Crée le joueur et le donne à la carte. */
     #spawnPlayer(worldMap, x, y, z, options){
-        worldMap.addPlayer(CoreMapView.FactoryWorld.create({...options, x, y, z, type: options.type ?? Entity.type}));
+        worldMap.addPlayer(CoreMapView.FactoryWorld.create({
+            ...options, x, y, z, type: options.type ?? Entity.type,
+            width: options.width ?? 1, height: options.height ?? 1
+        }));
     }
 }

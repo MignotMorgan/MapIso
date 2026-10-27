@@ -127,7 +127,7 @@ export class EntityMove{
     get adjustment(){ return this.#adjustment; }
 
     /** Y a-t-il un trajet en cours ? Un trajet d'une seule case n'en est pas un. */
-    get walking(){ return this.#path.length > 1 && this.#speed > 0; }
+    walking(){ return this.#path.length > 1 && this.#speed > 0; }
     /** La dernière case du trajet, ou null si le carnet est vide. */
     get destination(){
         return this.#path.length === 0 ? null : this.#path[this.#path.length - 1];
@@ -138,7 +138,7 @@ export class EntityMove{
         this.path = path;
         this.#index = 0;
         this.#step = 0;
-        return this.walking;
+        return this.walking();
     }
     /** Range le carnet : plus de trajet en cours. */
     clear(){
@@ -160,7 +160,7 @@ export class EntityMove{
 
     /** Le pas en cours, ou null si le trajet est fini ou inexistant. */
     stride(){
-        if(!this.walking) return null;
+        if(!this.walking()) return null;
         if(this.#index >= this.#path.length - 1) return null;
         const duration = this.duration(this.#index);
         return new Stride(this.#path[this.#index],
@@ -175,7 +175,7 @@ export class EntityMove{
      * Renvoie true si la case logique vient de changer, ou si le trajet finit.
      */
     progress(elapsed, entity){
-        if(!this.walking) return false;
+        if(!this.walking()) return false;
 
         this.#step += elapsed ?? 0;
 

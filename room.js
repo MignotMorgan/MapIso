@@ -28,18 +28,25 @@ export class Room{
     }
 
     get id(){ return this.#id; }
+    set id(value){ this.#id = value; }
     get x(){ return this.#x; }
+    set x(value){ this.#x = value; }
     get y(){ return this.#y; }
+    set y(value){ this.#y = value; }
     get z(){ return this.#z; }
+    set z(value){ this.#z = value; }
     get width(){ return this.#width; }
+    set width(value){ this.#width = value; }
     get height(){ return this.#height; }
+    set height(value){ this.#height = value; }
     get depth(){ return this.#depth; }
+    set depth(value){ this.#depth = value; }
 
     /** Le point est-il dans le volume de la pièce ? */
     contains(wx, wy, wz){
-        return this.#x <= wx && wx < this.#x + this.#width
-            && this.#y <= wy && wy < this.#y + this.#height
-            && this.#z <= wz && wz < this.#z + this.#depth;
+        return this.x <= wx && wx < this.x + this.width
+            && this.y <= wy && wy < this.y + this.height
+            && this.z <= wz && wz < this.z + this.depth;
     }
 
     /**
@@ -48,34 +55,33 @@ export class Room{
      * inset recule le bord min x/y, en cubes.
      */
     hides(wx, wy, wz, inset = 0){
-        return this.#x + inset <= wx && wx < this.#x + this.#width
-            && this.#y + inset <= wy && wy < this.#y + this.#height
-            && this.#z < wz;
+        return this.x + inset <= wx && wx < this.x + this.width
+            && this.y + inset <= wy && wy < this.y + this.height
+            && this.z < wz;
     }
 
     toJSON(json){
         if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
         json.type = this.constructor.type;
         json.version = this.constructor.version;
-        json.id = this.#id;
-        json.x = this.#x;
-        json.y = this.#y;
-        json.z = this.#z;
-        json.width = this.#width;
-        json.height = this.#height;
-        json.depth = this.#depth;
+        json.id = this.id;
+        json.x = this.x;
+        json.y = this.y;
+        json.z = this.z;
+        json.width = this.width;
+        json.height = this.height;
+        json.depth = this.depth;
         return json;
     }
 
     fromJSON(json){
-        const v = json ?? {};
-        this.#id = v.id ?? "";
-        this.#x = v.x ?? 0;
-        this.#y = v.y ?? 0;
-        this.#z = v.z ?? 0;
-        this.#width = v.width ?? 1;
-        this.#height = v.height ?? 1;
-        this.#depth = v.depth ?? 1;
+        this.id = json.id;
+        this.x = json.x;
+        this.y = json.y;
+        this.z = json.z;
+        this.width = json.width;
+        this.height = json.height;
+        this.depth = json.depth;
         return this;
     }
 }

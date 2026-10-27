@@ -1,4 +1,5 @@
 import { Register } from './register.js';
+import { EntityMove } from './entityMove.js';
 
 
 export class FactoryWorld{
@@ -9,5 +10,8 @@ export class FactoryWorld{
         if(json == null || json.type == null) return null;
         const Class = this.#register.get(json.type);
         return new Class(json);
+    }
+    createEntityMove(json){
+        return json == null ? new EntityMove() : new EntityMove(json);
     }
 }
