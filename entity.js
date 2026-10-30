@@ -1,6 +1,6 @@
 import { CoreMapView } from './Controls/Base/coreMapView.js';
 import { Point, Location } from './point.js';
-import { Direction } from './entityMove.js';
+import { EntityMove, Direction } from './entityMove.js';
 
 /**
  * Modèle monde d'un personnage / objet.
@@ -57,11 +57,7 @@ export class Entity{
     get direction(){ return this.#direction; }
     set direction(value){ this.#direction = value; }
     get canMove(){ return this.#canMove; }
-    set canMove(value){
-        if(value) this.#entityMove = CoreMapView.FactoryWorld.createEntityMove();
-        else if(!value) this.#entityMove = null;
-        this.#canMove = value; 
-    }
+    set canMove(value){ this.#canMove = this.#setCanMove(value); }
     get canTarget(){ return this.#canTarget; }
     set canTarget(value){ this.#canTarget = value; }
     get walkable(){ return this.#walkable; }
@@ -76,6 +72,11 @@ export class Entity{
     set spriteStand(value){ this.#spriteStand = value; }
     get spriteAnimated(){ return this.#spriteAnimated; }
     set spriteAnimated(value){ this.#spriteAnimated = value; }
+
+    #setCanMove(value){
+        value ? this.#entityMove = CoreMapView.FactoryWorld.create({ type: EntityMove.type }) : this.#entityMove = null;
+        return value;
+    }
 
     /** L'entité est-elle en train de parcourir un trajet ? */
     walking(){ return this.entityMove !== null && this.entityMove.walking(); }
@@ -156,18 +157,20 @@ export class Entity{
      * puis ses champs.
      */
     fromJSON(json){
-        this.id = json.id;
-        this.location.set(json.x, json.y, json.z);
-        this.width = json.width;
-        this.height = json.height;
-        this.adjustment.fromJSON(json.adjustment);
-        this.direction = json.direction;
-        this.canMove = json.canMove;
-        this.canTarget = json.canTarget;
-        this.walkable = json.walkable;
-        this.sprite = json.sprite;
-        this.spriteStand = json.spriteStand;
-        this.spriteAnimated = json.spriteAnimated;
-        if( this.canMove) this.entityMove.fromJSON(json.entityMove);
+        if( json.id !== undefined ) this.id = json.id;
+        if( json.x !== undefined ) this.location.x = json.x;
+        if( json.y !== undefined ) this.location.y = json.y;
+        if( json.z !== undefined ) this.location.z = json.z;
+        if( json.width !== undefined ) this.width = json.width;
+        if( json.height !== undefined ) this.height = json.height;
+        if( json.adjustment !== undefined ) this.adjustment.fromJSON(json.adjustment);
+        if( json.direction !== undefined ) this.direction = json.direction;
+        if( json.canMove !== undefined ) this.canMove = json.canMove;
+        if( json.canTarget !== undefined ) this.canTarget = json.canTarget;
+        if( json.walkable !== undefined ) this.walkable = json.walkable;
+        if( json.sprite !== undefined ) this.sprite = json.sprite;
+        if( json.spriteStand !== undefined ) this.spriteStand = json.spriteStand;
+        if( json.spriteAnimated !== undefined ) this.spriteAnimated = json.spriteAnimated;
+        if( this.canMove && json.entityMove !== undefined ) this.entityMove.fromJSON(json.entityMove);
     }
 }

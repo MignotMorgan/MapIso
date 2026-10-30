@@ -30,12 +30,12 @@ export class DrawMapView extends Draw {
     draw(){
         const paint = this.Paint;
         const rect = this.control.Rectangle.rectangleBackground();
-        //paint.clipRectangle(rect.x, rect.y, rect.width, rect.height, () => {
+        paint.clipRectangle(rect.x, rect.y, rect.width, rect.height, () => {
             this.drawMap();
             if(this.#showGrid) this.drawGrid();
             if(this.#showCaseNumbers) this.drawCaseNumbers();
             if(this.#showHover) this.drawHover(this.control.casePoint.x, this.control.casePoint.y);
-        //});
+        });
         super.draw();
     }
 

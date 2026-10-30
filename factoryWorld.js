@@ -11,7 +11,4 @@ export class FactoryWorld{
         const Class = this.#register.get(json.type);
         return new Class(json);
     }
-    createEntityMove(json){
-        return json == null ? new EntityMove() : new EntityMove(json);
-    }
 }

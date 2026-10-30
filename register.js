@@ -2,6 +2,7 @@ import { Cube } from './cube.js';
 import { Entity } from './entity.js';
 import { Room } from './room.js';
 import { WorldMap } from './worldMap.js';
+import { EntityMove } from './entityMove.js';
 
 export class Register {
     #types = new Map();
@@ -27,6 +28,7 @@ export class Register {
         this.#set(Entity);
         this.#set(Room);
         this.#set(WorldMap);
+        this.#set(EntityMove);
     }
 
 }

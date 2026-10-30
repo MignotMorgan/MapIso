@@ -69,17 +69,17 @@ export class Cube{
     }
 
     fromJSON(json){
-        this.x = json.x;
-        this.y = json.y;
-        this.z = json.z;
-        this.speed = json.speed;
-        this.floors = json.floors;
-        this.north = json.north;
-        this.west = json.west;
-        this.volumes = json.volumes;
-        this.northOpen = json.northOpen;
-        this.westOpen = json.westOpen;
-        this.floorOpen = json.floorOpen;
-        this.walkable = json.walkable;
+        if( json.x !== undefined ) this.x = json.x;
+        if( json.y !== undefined ) this.y = json.y;
+        if( json.z !== undefined ) this.z = json.z;
+        if( json.speed !== undefined ) this.speed = json.speed;
+        if( json.floors !== undefined ) this.floors = json.floors;
+        if( json.north !== undefined ) this.north = json.north;
+        if( json.west !== undefined ) this.west = json.west;
+        if( json.volumes !== undefined ) this.volumes = json.volumes;
+        if( json.northOpen !== undefined ) this.northOpen = json.northOpen;
+        if( json.westOpen !== undefined ) this.westOpen = json.westOpen;
+        if( json.floorOpen !== undefined ) this.floorOpen = json.floorOpen;
+        if( json.walkable !== undefined ) this.walkable = json.walkable;
     }
 }

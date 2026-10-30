@@ -29,7 +29,7 @@ export class WorldMap{
     }
 
     get name(){ return this.#name; }
-    set name(value){ this.#name = value ?? ""; }
+    set name(value){ this.#name = value; }
     /** Version du document dont cette carte est issue, ou la version courante si elle est neuve. */
     get version(){ return this.#version; }
     get width(){ return this.#width; }
@@ -55,8 +55,8 @@ export class WorldMap{
     tick(){
         const elapsed = this.#measureElapsed();
         const moved = [];
-        this.#tickList(this.#players, elapsed, moved);
-        this.#tickList(this.#entities, elapsed, moved);
+        this.#tickList(this.players, elapsed, moved);
+        this.#tickList(this.entities, elapsed, moved);
         return moved;
     }
 
@@ -89,13 +89,13 @@ export class WorldMap{
     }
     // === GRILLE ===
     contains(x, y, z){
-        return 0 <= x && x < this.#width
-            && 0 <= y && y < this.#height
-            && 0 <= z && z < this.#depth;
+        return 0 <= x && x < this.width
+            && 0 <= y && y < this.height
+            && 0 <= z && z < this.depth;
     }
     findCube(x, y, z){
         if(!this.contains(x, y, z)) return null;
-        return this.#cubes[x][y][z] ?? null;
+        return this.cubes[x][y][z] ?? null;
     }
     addCube(cube){
         if(cube !== null && (cube instanceof Cube) && this.contains(cube.x, cube.y, cube.z))
@@ -232,18 +232,26 @@ export class WorldMap{
     }
 
     fromJSON(json){
-        this.name = json.name;
-        this.width = json.width;
-        this.height = json.height;
-        this.depth = json.depth;
-        this.#cubes = WorldMap.#emptyGrid(this.width, this.height, this.depth);
-        this.#players = [];
-        this.#entities = [];
-        this.#rooms = [];
-        for(let i = 0; i < json.cubes.length; i++) this.addCube(CoreMapView.FactoryWorld.create(json.cubes[i]));
-        for(let i = 0; i < json.players.length; i++) this.addPlayer(CoreMapView.FactoryWorld.create(json.players[i]));
-        for(let i = 0; i < json.entities.length; i++) this.addEntity(CoreMapView.FactoryWorld.create(json.entities[i]));
-        for(let i = 0; i < json.rooms.length; i++) this.addRoom(CoreMapView.FactoryWorld.create(json.rooms[i]));
+        if( json.name !== undefined ) this.name = json.name;
+        if( json.width !== undefined ) this.width = json.width;
+        if( json.height !== undefined ) this.height = json.height;
+        if( json.depth !== undefined ) this.depth = json.depth;
+        if( json.cubes !== undefined ){
+             this.#cubes = WorldMap.#emptyGrid(this.width, this.height, this.depth);
+            for(let i = 0; i < json.cubes.length; i++) this.addCube(CoreMapView.FactoryWorld.create(json.cubes[i]));
+        }
+        if( json.players !== undefined ){
+            this.#players = [];
+            for(let i = 0; i < json.players.length; i++) this.addPlayer(CoreMapView.FactoryWorld.create(json.players[i]));
+        }
+        if( json.entities !== undefined ){
+            this.#entities = [];
+            for(let i = 0; i < json.entities.length; i++) this.addEntity(CoreMapView.FactoryWorld.create(json.entities[i]));
+        }
+        if( json.rooms !== undefined ){
+            this.#rooms = [];
+            for(let i = 0; i < json.rooms.length; i++) this.addRoom(CoreMapView.FactoryWorld.create(json.rooms[i]));
+        }
     }
     
     static #toJsonList(list){

@@ -101,50 +101,48 @@ export class EntityMove{
 
     #id = 0;
     #path = [];
-    #speed = 400;
+    #speed = 0;
     #index = 0;
     #step = 0;
     #sprite = null;
-    #adjustment = null;
+    #adjustment = new Point();
 
     constructor(options = {}){
         this.fromJSON(options);
     }
 
     get id(){ return this.#id; }
-    set id(value){ this.#id = value ?? 0; }
+    set id(value){ this.#id = value; }
     get path(){ return this.#path; }
-    set path(value){
-        this.#path = (value ?? []).map(point =>
-            point instanceof Location ? point : new Location().fromJSON(point));
-    }
+    set path(value){ this.#path = value; }
     get speed(){ return this.#speed; }
-    set speed(value){ this.#speed = value ?? 0; }
+    set speed(value){ this.#speed = value; }
     get index(){ return this.#index; }
+    set index(value){ this.#index = value; }
     get step(){ return this.#step; }
+    set step(value){ this.#step = value; }
     get sprite(){ return this.#sprite; }
-    set sprite(value){ this.#sprite = value ?? null; }
+    set sprite(value){ this.#sprite = value; }
     get adjustment(){ return this.#adjustment; }
+    set adjustment(value){ this.#adjustment = value; }
 
     /** Y a-t-il un trajet en cours ? Un trajet d'une seule case n'en est pas un. */
-    walking(){ return this.#path.length > 1 && this.#speed > 0; }
+    walking(){ return this.path.length > 1 && this.speed > 0; }
     /** La dernière case du trajet, ou null si le carnet est vide. */
-    get destination(){
-        return this.#path.length === 0 ? null : this.#path[this.#path.length - 1];
-    }
+    get destination(){ return this.path.length === 0 ? null : this.path[this.path.length - 1]; }
 
     /** Prend un nouveau trajet, depuis le début. Renvoie false s'il n'y a rien à parcourir. */
     start(path){
         this.path = path;
-        this.#index = 0;
-        this.#step = 0;
+        this.index = 0;
+        this.step = 0;
         return this.walking();
     }
     /** Range le carnet : plus de trajet en cours. */
     clear(){
-        this.#path = [];
-        this.#index = 0;
-        this.#step = 0;
+        this.path = [];
+        this.index = 0;
+        this.step = 0;
     }
 
     /**
@@ -154,18 +152,18 @@ export class EntityMove{
      * visiblement dès qu'il marche en biais.
      */
     duration(index){
-        if(index < 0 || index >= this.#path.length - 1) return 0;
-        return this.#speed * Math.max(1, this.#path[index].ground(this.#path[index + 1]));
+        if(index < 0 || index >= this.path.length - 1) return 0;
+        return this.speed * Math.max(1, this.path[index].ground(this.path[index + 1]));
     }
 
     /** Le pas en cours, ou null si le trajet est fini ou inexistant. */
     stride(){
         if(!this.walking()) return null;
-        if(this.#index >= this.#path.length - 1) return null;
-        const duration = this.duration(this.#index);
-        return new Stride(this.#path[this.#index],
-                          this.#path[this.#index + 1],
-                          duration <= 0 ? 0 : this.#step / duration);
+        if(this.index >= this.path.length - 1) return null;
+        const duration = this.duration(this.index);
+        return new Stride(this.path[this.index],
+                          this.path[this.index + 1],
+                          duration <= 0 ? 0 : this.step / duration);
     }
 
     /**
@@ -177,17 +175,17 @@ export class EntityMove{
     progress(elapsed, entity){
         if(!this.walking()) return false;
 
-        this.#step += elapsed ?? 0;
+        this.step += elapsed;
 
         // Une image lente peut franchir plusieurs cases d'un coup.
-        let duration = this.duration(this.#index);
-        while(duration > 0 && this.#step >= duration){
-            this.#step -= duration;
-            this.#index++;
-            duration = this.duration(this.#index);
+        let duration = this.duration(this.index);
+        while(duration > 0 && this.step >= duration){
+            this.step -= duration;
+            this.index++;
+            duration = this.duration(this.index);
         }
 
-        if(this.#index >= this.#path.length - 1){
+        if(this.index >= this.path.length - 1){
             if(entity != null && this.destination !== null)
                 entity.location.copy(this.destination);
             this.clear();
@@ -211,16 +209,13 @@ export class EntityMove{
         if(json == null || typeof json !== "object" || Array.isArray(json)) json = {};
         json.type = this.constructor.type;
         json.version = this.constructor.version;
-        json.id = this.#id;
-        const path = [];
-        for(let i = 0; i < this.#path.length; i++)
-            path[path.length] = this.#path[i].toJSON();
-        json.path = path;
-        json.speed = this.#speed;
-        json.index = this.#index;
-        json.step = this.#step;
-        json.sprite = this.#sprite;
-        json.adjustment = this.#adjustment === null ? null : this.#adjustment.toJSON();
+        json.id = this.id;
+        json.path = this.path.map(point => point.toJSON());
+        json.speed = this.speed;
+        json.index = this.index;
+        json.step = this.step;
+        json.sprite = this.sprite;
+        json.adjustment = this.adjustment.toJSON();
         return json;
     }
 
@@ -228,14 +223,12 @@ export class EntityMove{
     static empty(){ return new EntityMove(); }
 
     fromJSON(json){
-        const v = json ?? {};
-        this.#id = v.id ?? 0;
-        this.path = v.path ?? [];
-        this.#speed = v.speed ?? 400;
-        this.#index = v.index ?? 0;
-        this.#step = v.step ?? 0;
-        this.#sprite = v.sprite ?? null;
-        this.#adjustment = v.adjustment == null ? null : new Point().fromJSON(v.adjustment);
-        return this;
+        if( json.id !== undefined ) this.id = json.id;
+        if( json.path !== undefined ) this.path = json.path.map(point => new Location().fromJSON(point));
+        if( json.speed !== undefined ) this.speed = json.speed;
+        if( json.index !== undefined ) this.index = json.index;
+        if( json.step !== undefined ) this.step = json.step;
+        if( json.sprite !== undefined ) this.sprite = json.sprite;
+        if( json.adjustment !== undefined ) this.adjustment = new Point().fromJSON(json.adjustment);
     }
 }
