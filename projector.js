@@ -37,6 +37,11 @@ export class Projector{
         };
     }
 
+    caseFromMouse(){
+        const mouse = this.mouseFromScreen();
+        return this.caseFromScreen(mouse.x, mouse.y);
+    }
+
     /**
      * Souris dans le repère de dessin : le même que case.screen et
      * entityDraw.screen. Mouse.inside() est relatif au contrôle, pas au
@@ -46,11 +51,6 @@ export class Projector{
         const form = this.#mapView.form;
         return new Point(Core.mouse.x - form.Inside.x,
                          Core.mouse.y - form.Inside.y);
-    }
-
-    caseFromMouse(){
-        const mouse = this.mouseFromScreen();
-        return this.caseFromScreen(mouse.x, mouse.y);
     }
 
     caseFromScreen(sx, sy){

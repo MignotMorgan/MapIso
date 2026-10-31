@@ -1,6 +1,4 @@
 import { Register } from './register.js';
-import { EntityMove } from './entityMove.js';
-
 
 export class FactoryWorld{
 

@@ -102,7 +102,6 @@ export class Entity{
     /** Interrompt le trajet : on se pose et on range le carnet. */
     stop(){
         if(this.entityMove === null) return;
-        this.location.copy(this.entityMove.destination);
         this.entityMove.clear();
         this.spriteAnimated = false;
     }
@@ -168,9 +167,9 @@ export class Entity{
         if( json.canMove !== undefined ) this.canMove = json.canMove;
         if( json.canTarget !== undefined ) this.canTarget = json.canTarget;
         if( json.walkable !== undefined ) this.walkable = json.walkable;
-        if( json.sprite !== undefined ) this.sprite = json.sprite;
-        if( json.spriteStand !== undefined ) this.spriteStand = json.spriteStand;
-        if( json.spriteAnimated !== undefined ) this.spriteAnimated = json.spriteAnimated;
-        if( this.canMove && json.entityMove !== undefined ) this.entityMove.fromJSON(json.entityMove);
+        if( json.sprite != null ) this.sprite = json.sprite;
+        if( json.spriteStand != null ) this.spriteStand = json.spriteStand;
+        if( json.spriteAnimated != null ) this.spriteAnimated = json.spriteAnimated;
+        if( this.canMove && json.entityMove != null ) this.entityMove.fromJSON(json.entityMove);
     }
 }

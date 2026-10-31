@@ -101,7 +101,7 @@ export class EntityMove{
 
     #id = 0;
     #path = [];
-    #speed = 0;
+    #speed = 500;
     #index = 0;
     #step = 0;
     #sprite = null;
@@ -224,11 +224,11 @@ export class EntityMove{
 
     fromJSON(json){
         if( json.id !== undefined ) this.id = json.id;
-        if( json.path !== undefined ) this.path = json.path.map(point => new Location().fromJSON(point));
+        if( json.path != null ) this.path = json.path.map(point => new Location().fromJSON(point));
         if( json.speed !== undefined ) this.speed = json.speed;
         if( json.index !== undefined ) this.index = json.index;
         if( json.step !== undefined ) this.step = json.step;
-        if( json.sprite !== undefined ) this.sprite = json.sprite;
-        if( json.adjustment !== undefined ) this.adjustment = new Point().fromJSON(json.adjustment);
+        if( json.sprite != null ) this.sprite = json.sprite;
+        if( json.adjustment != null ) this.adjustment = new Point().fromJSON(json.adjustment);
     }
 }
