@@ -18,9 +18,9 @@ export class Point{
     }
 
     get x(){ return this.#x; }
-    set x(value){ this.#x = value ?? 0; }
+    set x(value){ this.#x = value }
     get y(){ return this.#y; }
-    set y(value){ this.#y = value ?? 0; }
+    set y(value){ this.#y = value }
 
     /** Déplace ce point-ci, au lieu d'en créer un nouveau. */
     set(x, y){

@@ -1,4 +1,4 @@
-import { CoreMapView } from './Controls/Base/coreMapView.js';
+import { FactoryWorld } from './factoryWorld.js';
 import { Cube } from './cube.js';
 import { Entity } from './entity.js';
 import { Room } from './room.js';
@@ -47,7 +47,7 @@ export class DemoWorld{
     }
 
     createWorldMap(){
-        const worldMap = CoreMapView.FactoryWorld.create({
+        const worldMap = FactoryWorld.instance.create({
             type: WorldMap.type, name: "démo",
             width: this.#width, height: this.#height, depth: this.#depth,
             cubes: [], players: [], entities: [], rooms: []
@@ -113,7 +113,7 @@ export class DemoWorld{
             wall: "bois", floor: "plancher", doorX: 14, doorY: bottom
         });
         this.#roof(worldMap, left, top, right, bottom, 1, "toit");
-        worldMap.addRoom(CoreMapView.FactoryWorld.create({
+        worldMap.addRoom(FactoryWorld.instance.create({
             type: Room.type, id: "cottage", x: left, y: top, z: 0,
             width: right - left + 1, height: bottom - top + 1, depth: 1
         }));
@@ -152,7 +152,7 @@ export class DemoWorld{
         this.#roof(worldMap, left, top, right, bottom, 6, "ardoise");
 
         for(let i = 0; i < levels.length; i++)
-            worldMap.addRoom(CoreMapView.FactoryWorld.create({
+            worldMap.addRoom(FactoryWorld.instance.create({
                 type: Room.type, id: "habitation" + levels[i],
                 x: left, y: top, z: levels[i], width, height, depth: 2
             }));
@@ -279,12 +279,12 @@ export class DemoWorld{
         cube.northOpen = options.northOpen ?? true;
         cube.westOpen = options.westOpen ?? true;
         cube.floorOpen = (z === 0 || options.floors != null) ? false : (options.floorOpen ?? true);
-        worldMap.addCube(CoreMapView.FactoryWorld.create(cube));
+        worldMap.addCube(FactoryWorld.instance.create(cube));
     }
 
     /** Crée un PNJ ou un objet et le donne à la carte. */
     #spawn(worldMap, x, y, z, options){
-        worldMap.addEntity(CoreMapView.FactoryWorld.create({
+        worldMap.addEntity(FactoryWorld.instance.create({
             ...options, x, y, z, type: options.type ?? Entity.type,
             width: options.width ?? 1, height: options.height ?? 1
         }));
@@ -292,7 +292,7 @@ export class DemoWorld{
 
     /** Crée le joueur et le donne à la carte. */
     #spawnPlayer(worldMap, x, y, z, options){
-        worldMap.addPlayer(CoreMapView.FactoryWorld.create({
+        worldMap.addPlayer(FactoryWorld.instance.create({
             ...options, x, y, z, type: options.type ?? Entity.type,
             width: options.width ?? 1, height: options.height ?? 1
         }));

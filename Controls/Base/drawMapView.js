@@ -56,8 +56,8 @@ export class DrawMapView extends Draw {
         const cases = mapview.cases;
         const maxZ = mapview.maxZ;
 
-        for(let z = 0; z <= maxZ; z++){
-            for(let i = 0; i < cases.length; i++){
+        for(let i = 0; i < cases.length; i++){
+            for(let z = 0; z <= maxZ; z++){
                 const c = cases[i];
                 this.drawCaseZ(paint, c, z, sizeCase);
             }

@@ -1,4 +1,4 @@
-import { CoreMapView } from './Controls/Base/coreMapView.js';
+import { FactoryWorld } from './factoryWorld.js';
 import { Cube } from './cube.js';
 import { Entity } from './entity.js';
 import { Pathfinding } from './pathfinding.js';
@@ -33,11 +33,8 @@ export class WorldMap{
     /** Version du document dont cette carte est issue, ou la version courante si elle est neuve. */
     get version(){ return this.#version; }
     get width(){ return this.#width; }
-    set width(value){ this.#width = value; }
     get height(){ return this.#height; }
-    set height(value){ this.#height = value; }
     get depth(){ return this.#depth; }
-    set depth(value){ this.#depth = value; }
     get cubes(){ return this.#cubes; }
     get players(){ return this.#players; }
     get entities(){ return this.#entities; }
@@ -55,11 +52,25 @@ export class WorldMap{
     tick(){
         const elapsed = this.#measureElapsed();
         const moved = [];
-        this.#tickList(this.players, elapsed, moved);
-        this.#tickList(this.entities, elapsed, moved);
+        this.#tickPlayer(elapsed, moved);
+        this.#tickEntities(elapsed, moved);
         return moved;
     }
 
+    #tickPlayer(elapsed, moved){
+        for(let i = 0; i < this.players.length; i++){
+            const entity = this.players[i];
+            if(entity == null) continue;
+            if(entity.tick(elapsed)) moved[moved.length] = entity;
+        }
+    }
+    #tickEntities(elapsed, moved){
+        for(let i = 0; i < this.entities.length; i++){
+            const entity = this.entities[i];
+            if(entity == null) continue;
+            if(entity.tick(elapsed)) moved[moved.length] = entity;
+        }
+    }
     /**
      * Intention « aller ici ». Seule la carte pathfind et lance la marche :
      * la vue et le futur client n'ont qu'à envoyer l'id et la case.
@@ -80,13 +91,6 @@ export class WorldMap{
         return clock.elapsed;
     }
 
-    #tickList(list, elapsed, moved){
-        for(let i = 0; i < list.length; i++){
-            const entity = list[i];
-            if(entity == null) continue;
-            if(entity.tick(elapsed)) moved[moved.length] = entity;
-        }
-    }
     // === GRILLE ===
     contains(x, y, z){
         return 0 <= x && x < this.width
@@ -109,13 +113,15 @@ export class WorldMap{
 
     // === ENTITÉS ===
     addPlayer(entity){
-        if (entity !== null && (entity instanceof Entity) && !this.findEntity(entity.id)){
+        if (entity !== null && (entity instanceof Entity)){
+            if (entity.id === "" || this.findEntity(entity.id) !== null) throw new Error('entity id "' + entity.id + '" is empty or already used');
             entity.worldMap = this;
             this.players[this.players.length] = entity;
         }
     }
     addEntity(entity){
-        if (entity !== null && (entity instanceof Entity) && !this.findEntity(entity.id)){
+        if (entity !== null && (entity instanceof Entity)){
+            if (entity.id === "" || this.findEntity(entity.id) !== null) throw new Error('entity id "' + entity.id + '" is empty or already used');
             entity.worldMap = this;
             this.entities[this.entities.length] = entity;
         }
@@ -130,6 +136,27 @@ export class WorldMap{
                 return this.entities[i];
 
         return null;
+    }
+    /** Une entité non traversable occupe-t-elle ce point ? ignored : celle qui se déplace. */
+    blocked(x, y, z, ignored = null){
+        return this.#blockedByPlayers(x, y, z, ignored)
+            || this.#blockedByEntities(x, y, z, ignored);
+    }
+    #blockedByPlayers( x, y, z, ignored){
+        for(let i = 0; i < this.players.length; i++){
+            const entity = this.players[i];
+            if(entity != null && entity !== ignored && !entity.walkable && entity.contains(x, y, z))
+                return true;
+        }
+        return false;
+    }
+    #blockedByEntities( x, y, z, ignored){
+        for(let i = 0; i < this.entities.length; i++){
+            const entity = this.entities[i];
+            if(entity != null && entity !== ignored && !entity.walkable && entity.contains(x, y, z))
+                return true;
+        }
+        return false;
     }
     indexPlayer(id){
         for(let i = 0; i < this.players.length; i++)
@@ -148,7 +175,8 @@ export class WorldMap{
         let entity = null
         if (index !== -1){
             entity = this.players[index];
-            this.players[index] = null;
+            entity.worldMap = null;
+            this.players.splice(index, 1);
         }
         return entity;
     }
@@ -157,15 +185,18 @@ export class WorldMap{
         let entity = null
         if (index !== -1){
             entity = this.entities[index];
-            this.entities[index] = null;
+            entity.worldMap = null;
+            this.entities.splice(index, 1);
         }
         return entity;
     }
 
     // === PIÈCES ===
     addRoom(room){
-        if (room !== null && (room instanceof Room) && !this.findRoom(room.id))
+        if (room !== null && (room instanceof Room)){
+            if (room.id === "" || this.findRoom(room.id) !== null) throw new Error('room id "' + room.id + '" is empty or already used');
             this.rooms[this.rooms.length] = room;
+        }
     }
     findRooms(wx, wy, wz){
         const list = [];
@@ -191,21 +222,30 @@ export class WorldMap{
         let room = null
         if (index !== -1){
             room = this.rooms[index];
-            this.rooms[index] = null;
+            this.rooms.splice(index, 1);
         }
         return room;
     }
 
     // === INTERNE ===
-    static #emptyGrid(width, height, depth){
-        const grid = new Array(width);
-        for(let x = 0; x < width; x++)
+    #emptyGrid(){
+        this.#cubes = new Array(this.width);
+        for(let x = 0; x < this.width; x++)
         {
-            grid[x] = new Array(height);
-            for(let y = 0; y < height; y++)
-                grid[x][y] = new Array(depth).fill(null);
-        }
-        return grid;
+            this.cubes[x] = new Array(this.height);
+            for(let y = 0; y < this.height; y++)
+                this.cubes[x][y] = new Array(this.depth).fill(null);
+        };
+    }
+
+    /** Recrée la grille aux dimensions courantes : les cubes encore dans la carte sont conservés. */
+    #resizeGrid(){
+        const cubes = this.cubes;
+        this.#emptyGrid();
+        for(let x = 0; x < cubes.length; x++)
+            for(let y = 0; y < cubes[x].length; y++)
+                for(let z = 0; z < cubes[x][y].length; z++)
+                    this.addCube(cubes[x][y][z]);
     }
 
     // === SAUVEGARDE ===
@@ -232,25 +272,28 @@ export class WorldMap{
     }
 
     fromJSON(json){
-        if( json.name !== undefined ) this.name = json.name;
-        if( json.width !== undefined ) this.width = json.width;
-        if( json.height !== undefined ) this.height = json.height;
-        if( json.depth !== undefined ) this.depth = json.depth;
-        if( json.cubes !== undefined ){
-             this.#cubes = WorldMap.#emptyGrid(this.width, this.height, this.depth);
-            for(let i = 0; i < json.cubes.length; i++) this.addCube(CoreMapView.FactoryWorld.create(json.cubes[i]));
+        let grid = false;
+        if (json.version != null) this.#version = json.version;
+        if( json.name != null ) this.name = json.name;
+        if( json.width != null ){grid = true; this.#width = json.width;}
+        if( json.height != null ){grid = true; this.#height = json.height;}
+        if( json.depth != null ){grid = true; this.#depth = json.depth;}
+        if( json.cubes != null ){
+             this.#emptyGrid();
+            for(let i = 0; i < json.cubes.length; i++) this.addCube(FactoryWorld.instance.create(json.cubes[i]));
         }
-        if( json.players !== undefined ){
+        else if (grid) this.#resizeGrid();
+        if( json.players != null ){
             this.#players = [];
-            for(let i = 0; i < json.players.length; i++) this.addPlayer(CoreMapView.FactoryWorld.create(json.players[i]));
+            for(let i = 0; i < json.players.length; i++) this.addPlayer(FactoryWorld.instance.create(json.players[i]));
         }
-        if( json.entities !== undefined ){
+        if( json.entities != null ){
             this.#entities = [];
-            for(let i = 0; i < json.entities.length; i++) this.addEntity(CoreMapView.FactoryWorld.create(json.entities[i]));
+            for(let i = 0; i < json.entities.length; i++) this.addEntity(FactoryWorld.instance.create(json.entities[i]));
         }
-        if( json.rooms !== undefined ){
+        if( json.rooms != null ){
             this.#rooms = [];
-            for(let i = 0; i < json.rooms.length; i++) this.addRoom(CoreMapView.FactoryWorld.create(json.rooms[i]));
+            for(let i = 0; i < json.rooms.length; i++) this.addRoom(FactoryWorld.instance.create(json.rooms[i]));
         }
     }
     

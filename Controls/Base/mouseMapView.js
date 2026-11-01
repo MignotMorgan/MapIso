@@ -29,7 +29,8 @@ export class MouseMapView extends Mouse{
         mapview.casePoint = mapview.caseFromMouse();
         mapview.onTarget();
 
-        if(mapview.target.id !== "") mapview.select(mapview.target.id);
+        const entity = mapview.findEntity(mapview.target.id);
+        if(entity !== null && entity.canMove) mapview.select(mapview.target.id);
         else mapview.moveSelectedTo(mapview.target.cube);
     }
 

@@ -41,6 +41,8 @@ export class MapView extends Control{
     #modified = false;
     //cases : Tableau des cases 3D visibles à l'écran
     #cases = [];
+    //casesByKey : les mêmes cases, rangées par coordonnées pour que findCase réponde sans parcourir le tableau
+    #casesByKey = new Map();
     //maxZ : Niveau maximum d'affichage en profondeur (altitude)
     #maxZ = 10;
     //floorsDefault : textures dessinées sous les cases vides (repère de l'éditeur)
@@ -95,10 +97,10 @@ export class MapView extends Control{
             this.createCubes();
             this.#createCubes = false;
         }
-        if(this.#rebuildEntityDraws){
+        //if(this.#rebuildEntityDraws){
             this.createEntityDraws();
-            this.#rebuildEntityDraws = false;
-        }
+        //    this.#rebuildEntityDraws = false;
+        //}
         this.placeCases();
         this.placeEntityDraws();
     }
@@ -190,11 +192,10 @@ export class MapView extends Control{
     }
 
     get cases(){ return this.#cases; }
-    set cases(value){ this.#cases = value; }
     get maxZ(){ return this.#maxZ; }
     set maxZ(value){ this.#maxZ = value; }
     get floorsDefault(){ return this.#floorsDefault; }
-    set floorsDefault(value){ this.#floorsDefault = value || []; }
+    set floorsDefault(value){ this.#floorsDefault = value; }
     get adjusted(){ return this.#adjusted; }
     set adjusted(value){ this.#adjusted = !!value; this.#rebuildEntityDraws = true; }
 
@@ -202,7 +203,7 @@ export class MapView extends Control{
     get following(){ return this.#following; }
     set following(value){ this.#following = !!value; }
     get hideWalls(){ return this.#hideWalls; }
-    set hideWalls(value){ this.#hideWalls = value ?? 0; }
+    set hideWalls(value){ this.#hideWalls = !!value; }
     get selected(){ return this.#selection.selected; }
     get target(){ return this.#selection.target; }
     get selectedMulti(){ return this.#selection.selectedMulti; }
@@ -210,7 +211,7 @@ export class MapView extends Control{
     get worldMap(){ return this.#worldMap; }
     /** Brancher une carte suffit : la vue se remplit toute seule au tour suivant. */
     set worldMap(value){
-        this.#worldMap = value ?? null;
+        this.#worldMap = value;
         this.#openRooms = [];
         this.#createCubes = true;
         this.#rebuildEntityDraws = true;
@@ -248,7 +249,7 @@ export class MapView extends Control{
     screenFromLocation(wx, wy, wz){ return this.#projector.screenFromLocation(wx, wy, wz); }
     createCases(){
         const maxCases = this.caseCount*2;
-        this.cases = [];
+        this.#cases = [];
         for(let x = -maxCases; x <= maxCases; x++){
             for(let y = -maxCases; y <= maxCases; y++){
                 const manhattan = Math.abs(x)+Math.abs(y);
@@ -264,6 +265,9 @@ export class MapView extends Control{
             if(depth !== 0) return depth;
             return (a.x - a.y) - (b.x - b.y);
         });
+        this.#casesByKey = new Map();
+        for(let i = 0; i < this.cases.length; i++)
+            this.#casesByKey.set(this.cases[i].x + "," + this.cases[i].y, this.cases[i]);
         this.#placed.x = NaN;
         this.#placed.y = NaN;
     }
@@ -361,6 +365,8 @@ export class MapView extends Control{
         for(let i = 0; i < draws.length; i++){
             const draw = draws[i];
             const entity = draw.entity;
+            // Hors de toute case, l'entité n'est ni peinte ni cliquable.
+            if(this.hidesCeiling(entity.x, entity.y, entity.z)) continue;
 
             const stride = entity.stride();
             if(stride === null){
@@ -434,10 +440,7 @@ export class MapView extends Control{
     }
     /** Case du viewport (losange affiché), pas un cube monde. */
     findCase(cx, cy){
-        for(let i = 0; i < this.cases.length; i++)
-            if ( this.cases[i].x === cx && this.cases[i].y === cy)
-                return this.cases[i];
-        return null;    
+        return this.#casesByKey.get(cx + "," + cy) ?? null;
     }
     /** Monde → case visible, via le projecteur (même parallaxe que l'écran). */
     findCaseLocation(wx, wy, wz){
@@ -454,7 +457,7 @@ export class MapView extends Control{
         }
 
         for(let i = 0; i < this.entities.length; i++)
-            if(id === this.entities[i].id)
+            if(this.entities[i] !== null && this.entities[i].id === id)
                 return this.entities[i];
     
         return null;

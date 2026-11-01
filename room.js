@@ -75,12 +75,12 @@ export class Room{
     }
 
     fromJSON(json){
-        if( json.id !== undefined ) this.id = json.id;
-        if( json.x !== undefined ) this.x = json.x;
-        if( json.y !== undefined ) this.y = json.y;
-        if( json.z !== undefined ) this.z = json.z;
-        if( json.width !== undefined ) this.width = json.width;
-        if( json.height !== undefined ) this.height = json.height;
-        if( json.depth !== undefined ) this.depth = json.depth;
+        if( json.id != null ) this.id = json.id;
+        if( json.x != null ) this.x = json.x;
+        if( json.y != null ) this.y = json.y;
+        if( json.z != null ) this.z = json.z;
+        if( json.width != null ) this.width = json.width;
+        if( json.height != null ) this.height = json.height;
+        if( json.depth != null ) this.depth = json.depth;
     }
 }

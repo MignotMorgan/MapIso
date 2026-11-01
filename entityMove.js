@@ -223,11 +223,11 @@ export class EntityMove{
     static empty(){ return new EntityMove(); }
 
     fromJSON(json){
-        if( json.id !== undefined ) this.id = json.id;
+        if( json.id != null ) this.id = json.id;
         if( json.path != null ) this.path = json.path.map(point => new Location().fromJSON(point));
-        if( json.speed !== undefined ) this.speed = json.speed;
-        if( json.index !== undefined ) this.index = json.index;
-        if( json.step !== undefined ) this.step = json.step;
+        if( json.speed != null ) this.speed = json.speed;
+        if( json.index != null ) this.index = json.index;
+        if( json.step != null ) this.step = json.step;
         if( json.sprite != null ) this.sprite = json.sprite;
         if( json.adjustment != null ) this.adjustment = new Point().fromJSON(json.adjustment);
     }

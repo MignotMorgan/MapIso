@@ -1,4 +1,4 @@
-import { CoreMapView } from './Controls/Base/coreMapView.js';
+import { FactoryWorld } from './factoryWorld.js';
 import { Point, Location } from './point.js';
 import { EntityMove, Direction } from './entityMove.js';
 
@@ -12,7 +12,7 @@ import { EntityMove, Direction } from './entityMove.js';
  * Le constructeur reçoit un objet options (x, y, z, id, canMove, sprite…).
  * 
  * info pour la documentation :
- * - Si this.canMove = true, EntityMove est créé et initialisé avec un constructeur vide.
+ * - Si this.canMove = true, EntityMove est créé et initialisé avec un constructeur vide, s'il n'existe pas déjà.
  * - Si this.canMove = false, EntityMove est détruit et mis à null.
 */
 export class Entity{
@@ -74,7 +74,13 @@ export class Entity{
     set spriteAnimated(value){ this.#spriteAnimated = value; }
 
     #setCanMove(value){
-        value ? this.#entityMove = CoreMapView.FactoryWorld.create({ type: EntityMove.type }) : this.#entityMove = null;
+        if( value ){
+            if (this.#entityMove === null) this.#entityMove = FactoryWorld.instance.create({ type: EntityMove.type });
+        }
+        else {
+            this.#entityMove = null;
+            this.spriteAnimated = false;
+        }
         return value;
     }
 
@@ -156,17 +162,17 @@ export class Entity{
      * puis ses champs.
      */
     fromJSON(json){
-        if( json.id !== undefined ) this.id = json.id;
-        if( json.x !== undefined ) this.location.x = json.x;
-        if( json.y !== undefined ) this.location.y = json.y;
-        if( json.z !== undefined ) this.location.z = json.z;
-        if( json.width !== undefined ) this.width = json.width;
-        if( json.height !== undefined ) this.height = json.height;
-        if( json.adjustment !== undefined ) this.adjustment.fromJSON(json.adjustment);
-        if( json.direction !== undefined ) this.direction = json.direction;
-        if( json.canMove !== undefined ) this.canMove = json.canMove;
-        if( json.canTarget !== undefined ) this.canTarget = json.canTarget;
-        if( json.walkable !== undefined ) this.walkable = json.walkable;
+        if( json.id != null ) this.id = json.id;
+        if( json.x != null ) this.location.x = json.x;
+        if( json.y != null ) this.location.y = json.y;
+        if( json.z != null ) this.location.z = json.z;
+        if( json.width != null ) this.width = json.width;
+        if( json.height != null ) this.height = json.height;
+        if( json.adjustment != null ) this.adjustment.fromJSON(json.adjustment);
+        if( json.direction != null ) this.direction = json.direction;
+        if( json.canMove != null ) this.canMove = json.canMove;
+        if( json.canTarget != null ) this.canTarget = json.canTarget;
+        if( json.walkable != null ) this.walkable = json.walkable;
         if( json.sprite != null ) this.sprite = json.sprite;
         if( json.spriteStand != null ) this.spriteStand = json.spriteStand;
         if( json.spriteAnimated != null ) this.spriteAnimated = json.spriteAnimated;

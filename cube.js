@@ -69,17 +69,17 @@ export class Cube{
     }
 
     fromJSON(json){
-        if( json.x !== undefined ) this.x = json.x;
-        if( json.y !== undefined ) this.y = json.y;
-        if( json.z !== undefined ) this.z = json.z;
-        if( json.speed !== undefined ) this.speed = json.speed;
-        if( json.floors !== undefined ) this.floors = json.floors;
-        if( json.north !== undefined ) this.north = json.north;
-        if( json.west !== undefined ) this.west = json.west;
-        if( json.volumes !== undefined ) this.volumes = json.volumes;
-        if( json.northOpen !== undefined ) this.northOpen = json.northOpen;
-        if( json.westOpen !== undefined ) this.westOpen = json.westOpen;
-        if( json.floorOpen !== undefined ) this.floorOpen = json.floorOpen;
-        if( json.walkable !== undefined ) this.walkable = json.walkable;
+        if( json.x != null ) this.x = json.x;
+        if( json.y != null ) this.y = json.y;
+        if( json.z != null ) this.z = json.z;
+        if( json.speed != null ) this.speed = json.speed;
+        if( json.floors != null ) this.floors = json.floors;
+        if( json.north != null ) this.north = json.north;
+        if( json.west != null ) this.west = json.west;
+        if( json.volumes != null ) this.volumes = json.volumes;
+        if( json.northOpen != null ) this.northOpen = json.northOpen;
+        if( json.westOpen != null ) this.westOpen = json.westOpen;
+        if( json.floorOpen != null ) this.floorOpen = json.floorOpen;
+        if( json.walkable != null ) this.walkable = json.walkable;
     }
 }

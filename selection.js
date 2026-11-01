@@ -54,7 +54,7 @@ export class Selection{
         const c = mapView.findCase(mapView.casePoint.x, mapView.casePoint.y);
         this.#target.case = c;
         this.#target.cube = c !== null ? c.floor() : null;
-        this.#target.id = this.#hitSprite(mapView.playerDraws.concat(mapView.entityDraws));
+        this.#target.id = this.#hitFront();
     }
 
     /**
@@ -150,6 +150,29 @@ export class Selection{
                 target = entity;
         }
         return target;
+    }
+
+    /**
+     * Sprite ciblable sous le curseur, le plus en avant d'abord : on remonte
+     * l'ordre de dessin de DrawMapView, du dernier peint au premier.
+     */
+    #hitFront(){
+        const mapView = this.#mapView;
+        const mouse = mapView.mouseFromScreen();
+        const cases = mapView.cases;
+        for(let z = mapView.maxZ; z >= 0; z--){
+            for(let i = cases.length - 1; i >= 0; i--){
+                const draws = cases[i].entityDraws;
+                for(let j = draws.length - 1; j >= 0; j--){
+                    const draw = draws[j];
+                    if(draw.z === z && draw.entity.canTarget
+                        && draw.screen.x < mouse.x && mouse.x < draw.screen.x + draw.width
+                        && draw.screen.y < mouse.y && mouse.y < draw.screen.y + draw.height)
+                        return draw.id;
+                }
+            }
+        }
+        return "";
     }
 
     #hitSprite(draws){

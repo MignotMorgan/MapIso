@@ -3,6 +3,19 @@ import { FactoryControlInfoMapView } from "./Controls/controlInfoMapView.js";
 import { CoreMapView } from "./Controls/Base/coreMapView.js";
 import { FactoryMapView } from './Controls/Base/factoryMapView.js';
 import { DemoWorld } from './demoWorld.js';
+import { FactoryWorld } from './factoryWorld.js';
+import { Cube } from './cube.js';
+import { Entity } from './entity.js';
+import { Room } from './room.js';
+import { WorldMap } from './worldMap.js';
+import { EntityMove } from './entityMove.js';
+
+// Les types du moteur. Un type propre au jeu s'ajoute ici avec FactoryWorld.instance.register(Classe).
+FactoryWorld.instance.register(Cube);
+FactoryWorld.instance.register(Entity);
+FactoryWorld.instance.register(Room);
+FactoryWorld.instance.register(WorldMap);
+FactoryWorld.instance.register(EntityMove);
 
 function start(){
     const factoryForm = new FactoryFormView();

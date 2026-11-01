@@ -53,7 +53,7 @@ export class PathNode{
  * Usage : new Pathfinding(x, y, z, worldMap).moveTo(entity, destX, destY, destZ)
  * Le trajet est écrit dans entity.entityMove.path.
  *
- * worldMap doit exposer findCube(x, y, z) — c'est tout. Le moteur ignore donc
+ * worldMap doit exposer findCube(x, y, z) et blocked(x, y, z, entity) — c'est tout. Le moteur ignore donc
  * comment la carte range ses cubes, ce qui la rend remplaçable (une carte
  * unique aujourd'hui, un assemblage de cartes plus tard).
  */
@@ -101,6 +101,12 @@ export class Pathfinding{
         return this.#worldMap.findCube(wx, wy, wz);
     }
 
+    /** Une autre entité barre-t-elle cette case ? C'est la carte qui sait, on lui demande. */
+    blocked(wx, wy, wz, entity = null){
+        if(this.#worldMap === null) return false;
+        return this.#worldMap.blocked(wx, wy, wz, entity);
+    }
+
     /** Cette case a-t-elle déjà été explorée ? Réponse immédiate, quelle que soit la taille du monde. */
     visited(wx, wy, wz){
         return this.#visited.has(Pathfinding.#key(wx, wy, wz));
@@ -144,6 +150,7 @@ export class Pathfinding{
                 const cube = this.findCube(nx, ny, nz);
                 const cross = new Cross(from, cube, (x, y, z) => this.findCube(x, y, z));
                 if(!cross.crossable()) continue;
+                if(this.blocked(nx, ny, nz, entity)) continue;
 
                 this.#visited.add(key);
                 const next = new PathNode(cube.x, cube.y, cube.z, node);
