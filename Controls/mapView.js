@@ -26,6 +26,8 @@ export class MapView extends Control{
     #createCubes = false;
     //rebuildEntityDraws : il faut recréer les EntityDraw (carte, zoom, sprites)
     #rebuildEntityDraws = true;
+    //entityRevisionDrawn : révision des personnages et entités au dernier createEntityDraws
+    #entityRevisionDrawn = -1;
 
     //casePoint : case survolée sur la grille isométrique
     #casePoint = new CasePoint();
@@ -50,7 +52,7 @@ export class MapView extends Control{
     //adjusted : si vrai, l'offset sous-case des entités décale leur sprite
     #adjusted = true;
     // Repères du dernier remplissage, pour ne recalculer les colonnes qu'en cas de changement.
-    #drawn = {x:NaN, y:NaN, z:NaN, maxZ:-1, hideWalls:-1};
+    #drawn = {x:NaN, y:NaN, z:NaN, maxZ:-1, hideWalls:-1, revision:-1};
     // Dernière origine écran des cases : si le contrôle bouge, les sols doivent suivre.
     #placed = {x:NaN, y:NaN, sizeCase:0};
     #projector = null;
@@ -97,24 +99,28 @@ export class MapView extends Control{
             this.createCubes();
             this.#createCubes = false;
         }
-        //if(this.#rebuildEntityDraws){
+        const entityRevision = this.#worldMap === null ? -1 : this.#worldMap.entityRevision;
+        if(this.#rebuildEntityDraws || this.#entityRevisionDrawn !== entityRevision){
             this.createEntityDraws();
-        //    this.#rebuildEntityDraws = false;
-        //}
+            this.#rebuildEntityDraws = false;
+        }
         this.placeCases();
         this.placeEntityDraws();
     }
-    /** La caméra ou le mode d'affichage ont-ils bougé depuis le dernier remplissage ? */
+    /** La caméra, le mode d'affichage ou la carte ont-ils changé depuis le dernier remplissage ? */
     viewChanged(){
         const drawn = this.#drawn;
         const location = this.#location;
+        const revision = this.#worldMap === null ? -1 : this.#worldMap.revision;
         if(drawn.x === location.x && drawn.y === location.y && drawn.z === location.z
-            && drawn.maxZ === this.#maxZ && drawn.hideWalls === this.#hideWalls) return false;
+            && drawn.maxZ === this.#maxZ && drawn.hideWalls === this.#hideWalls
+            && drawn.revision === revision) return false;
         drawn.x = location.x;
         drawn.y = location.y;
         drawn.z = location.z;
         drawn.maxZ = this.#maxZ;
         drawn.hideWalls = this.#hideWalls;
+        drawn.revision = revision;
         return true;
     }
     /** Déplace la caméra. Le monde sous la vue est recalculé au prochain tour. */
@@ -335,6 +341,7 @@ export class MapView extends Control{
      * pas à chaque image.
      */
     createEntityDraws(){
+        this.#entityRevisionDrawn = this.worldMap === null ? -1 : this.worldMap.entityRevision;
         const sizeCase = this.sizeCase;
         const players = this.worldMap === null ? [] : this.worldMap.players;
         const npcs = this.npcs();

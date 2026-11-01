@@ -16,6 +16,9 @@ export class FactoryWorld{
     create(json){
         if(json == null || json.type == null) return null;
         const Class = this.#register.get(json.type);
-        return new Class(json);
+        // Lu après la construction : les champs d'une sous-classe existent alors déjà.
+        const instance = new Class();
+        instance.fromJSON(json);
+        return instance;
     }
 }

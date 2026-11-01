@@ -23,10 +23,6 @@ export class Room{
     #height = 1;
     #depth = 1;
 
-    constructor(options = {}){
-        this.fromJSON(options);
-    }
-
     get id(){ return this.#id; }
     set id(value){ this.#id = value; }
     get x(){ return this.#x; }

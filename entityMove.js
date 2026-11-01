@@ -108,10 +108,6 @@ export class EntityMove{
     #sprite = null;
     #adjustment = new Point();
 
-    constructor(options = {}){
-        this.fromJSON(options);
-    }
-
     get id(){ return this.#id; }
     set id(value){ this.#id = value; }
     get path(){ return this.#path; }

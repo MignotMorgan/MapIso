@@ -9,7 +9,7 @@ import { EntityMove, Direction } from './entityMove.js';
  * Position (x,y,z) : coin supérieur-droit-arrière du volume.
  * Le volume va vers x/y décroissants et z croissant : base width×width, hauteur height.
  *
- * Le constructeur reçoit un objet options (x, y, z, id, canMove, sprite…).
+ * FactoryWorld le crée sans argument, puis lit le JSON (x, y, z, id, canMove, sprite…) avec fromJSON.
  * 
  * info pour la documentation :
  * - Si this.canMove = true, EntityMove est créé et initialisé avec un constructeur vide, s'il n'existe pas déjà.
@@ -34,10 +34,6 @@ export class Entity{
     #sprite = null;            // sprite / animation courante
     #spriteStand = null;       // sprite idle, repris quand l'anim se termine
     #spriteAnimated = false;
-
-    constructor(options = {}){
-        this.fromJSON(options);
-    }
 
     get id(){ return this.#id; }
     set id(value){ this.#id = value; }

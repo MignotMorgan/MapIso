@@ -19,15 +19,13 @@ export class WorldMap{
     #entities = [];
     #rooms = [];
     #clock = {last:0, elapsed:0, time:0};
+    #revision = 0;
+    #entityRevision = 0;
 
     /**
-     * options : width, height, depth, name, version, cubes, players, entities, rooms.
+     * fromJSON lit : width, height, depth, name, version, cubes, players, entities, rooms.
      * width/height = taille du sol, depth = nombre d'étages.
      */
-    constructor(options = {}){
-        this.fromJSON(options);
-    }
-
     get name(){ return this.#name; }
     set name(value){ this.#name = value; }
     /** Version du document dont cette carte est issue, ou la version courante si elle est neuve. */
@@ -43,6 +41,10 @@ export class WorldMap{
     get elapsed(){ return this.#clock.elapsed; }
     /** Millisecondes depuis le premier tick. Animations de textures, pas Date.now(). */
     get time(){ return this.#clock.time; }
+    /** Compteur qui change à chaque modification de la grille de cubes. La vue s'en sert pour la relire. */
+    get revision(){ return this.#revision; }
+    /** Compteur qui change à chaque ajout, retrait ou remplacement des personnages et des entités. */
+    get entityRevision(){ return this.#entityRevision; }
 
     // === TEMPS ===
     /**
@@ -102,12 +104,17 @@ export class WorldMap{
         return this.cubes[x][y][z] ?? null;
     }
     addCube(cube){
-        if(cube !== null && (cube instanceof Cube) && this.contains(cube.x, cube.y, cube.z))
+        if(cube !== null && (cube instanceof Cube) && this.contains(cube.x, cube.y, cube.z)){
             this.cubes[cube.x][cube.y][cube.z] = cube;
+            this.#revision++;
+        }
     }
     removeCube(x, y, z){
         const cube = this.findCube(x, y, z);
-        if(cube !== null) this.cubes[x][y][z] = null;
+        if(cube !== null){
+            this.cubes[x][y][z] = null;
+            this.#revision++;
+        }
         return cube;
     }
 
@@ -117,6 +124,7 @@ export class WorldMap{
             if (entity.id === "" || this.findEntity(entity.id) !== null) throw new Error('entity id "' + entity.id + '" is empty or already used');
             entity.worldMap = this;
             this.players[this.players.length] = entity;
+            this.#entityRevision++;
         }
     }
     addEntity(entity){
@@ -124,6 +132,7 @@ export class WorldMap{
             if (entity.id === "" || this.findEntity(entity.id) !== null) throw new Error('entity id "' + entity.id + '" is empty or already used');
             entity.worldMap = this;
             this.entities[this.entities.length] = entity;
+            this.#entityRevision++;
         }
     }
     findEntity(id){
@@ -177,6 +186,7 @@ export class WorldMap{
             entity = this.players[index];
             entity.worldMap = null;
             this.players.splice(index, 1);
+            this.#entityRevision++;
         }
         return entity;
     }
@@ -187,6 +197,7 @@ export class WorldMap{
             entity = this.entities[index];
             entity.worldMap = null;
             this.entities.splice(index, 1);
+            this.#entityRevision++;
         }
         return entity;
     }
@@ -229,6 +240,7 @@ export class WorldMap{
 
     // === INTERNE ===
     #emptyGrid(){
+        this.#revision++;
         this.#cubes = new Array(this.width);
         for(let x = 0; x < this.width; x++)
         {
@@ -285,10 +297,12 @@ export class WorldMap{
         else if (grid) this.#resizeGrid();
         if( json.players != null ){
             this.#players = [];
+            this.#entityRevision++;
             for(let i = 0; i < json.players.length; i++) this.addPlayer(FactoryWorld.instance.create(json.players[i]));
         }
         if( json.entities != null ){
             this.#entities = [];
+            this.#entityRevision++;
             for(let i = 0; i < json.entities.length; i++) this.addEntity(FactoryWorld.instance.create(json.entities[i]));
         }
         if( json.rooms != null ){
