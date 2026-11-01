@@ -9,6 +9,7 @@ import { Entity } from './entity.js';
 import { Room } from './room.js';
 import { WorldMap } from './worldMap.js';
 import { EntityMove } from './entityMove.js';
+import { WorldLoop } from './worldLoop.js';
 
 // Les types du moteur. Un type propre au jeu s'ajoute ici avec FactoryWorld.instance.register(Classe).
 FactoryWorld.instance.register(Cube);
@@ -37,7 +38,9 @@ function start(){
     // Le monde et son habillage. La vue ne sait rien d'autre que « voici une carte ».
     const demo = new DemoWorld();
     demo.textures();
-    mapView.worldMap = demo.createWorldMap();
+    const worldMap = demo.createWorldMap();
+    new WorldLoop(worldMap).start();
+    mapView.worldMap = worldMap;
     mapView.floorsDefault = ["vide"];
     mapView.maxZ = demo.depth - 1;
     mapView.moveTo(0, 0, 0);

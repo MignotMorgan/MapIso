@@ -22,6 +22,8 @@ export class MapView extends Control{
     #playerDraws = [];
     //openRooms : pièces dont la vue a levé le toit
     #openRooms = [];
+    //roomsFrom : la case d'où openRooms a été calculé
+    #roomsFrom = new Location();
     //createCubes : Flag indiquant qu'il faut traiter de nouveaux cubes
     #createCubes = false;
     //rebuildEntityDraws : il faut recréer les EntityDraw (carte, zoom, sprites)
@@ -80,16 +82,11 @@ export class MapView extends Control{
         if(this.#modified)
             this.rebuild();
 
-        if(this.#worldMap !== null){
-            const moved = this.#worldMap.tick();
-            const selectedId = this.selected.id;
-            if(selectedId !== "")
-                for(let i = 0; i < moved.length; i++)
-                    if(moved[i].id === selectedId){
-                        this.openRoomsFromSelected();
-                        break;
-                    }
-        }
+        // Le monde avance dans sa propre boucle : la vue constate le changement de case.
+        const entity = this.selectedEntity();
+        if(entity !== null && !entity.location.equals(this.#roomsFrom))
+            this.openRoomsFromSelected();
+
         // La caméra d'abord : sinon createCubes se fait sur l'ancienne
         // location, et l'image suivante recolle — un glitch d'une frame.
         if(this.#following) this.followSelected();
@@ -426,6 +423,7 @@ export class MapView extends Control{
     /** Pièces contenant ce point : c'est la carte qui sait, on lui demande. */
     openRoomsFrom(wx, wy, wz){
         this.#openRooms = this.worldMap === null ? [] : this.worldMap.findRooms(wx, wy, wz);
+        this.#roomsFrom.set(wx, wy, wz);
         this.#createCubes = true;
     }
     /** Ce cube fait-il partie d'un plafond à masquer ? hideWalls (inset) décide du sort des murs. */

@@ -19,6 +19,8 @@ export class WorldMap{
     #entities = [];
     #rooms = [];
     #clock = {last:0, elapsed:0, time:0};
+    // Temps maximal traité par tick : un onglet en veille ralentit le monde, sans téléporter personne.
+    #maxElapsed = 250;
     #revision = 0;
     #entityRevision = 0;
 
@@ -87,7 +89,7 @@ export class WorldMap{
         const now = Date.now();
         const clock = this.#clock;
         if(clock.last === 0){ clock.last = now; clock.elapsed = 0; clock.time = 0; return 0; }
-        clock.elapsed = now - clock.last;
+        clock.elapsed = Math.min(now - clock.last, this.#maxElapsed);
         clock.time += clock.elapsed;
         clock.last = now;
         return clock.elapsed;
