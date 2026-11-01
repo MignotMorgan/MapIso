@@ -106,16 +106,18 @@ export class DemoWorld{
 
     /**
      * Cottage d'un étage près de la caméra : toit escamotable via une Room.
+     * Il fait deux cubes de haut, comme les personnages qui y entrent.
      */
     cottage(worldMap){
         const left = 12, top = 0, right = 16, bottom = 4;
         this.#box(worldMap, left, top, right, bottom, 0, {
             wall: "bois", floor: "plancher", doorX: 14, doorY: bottom
         });
-        this.#roof(worldMap, left, top, right, bottom, 1, "toit");
+        this.#rim(worldMap, left, top, right, bottom, 1, "bois", 14, bottom);
+        this.#roof(worldMap, left, top, right, bottom, 2, "toit");
         worldMap.addRoom(FactoryWorld.instance.create({
             type: Room.type, id: "cottage", x: left, y: top, z: 0,
-            width: right - left + 1, height: bottom - top + 1, depth: 1
+            width: right - left + 1, height: bottom - top + 1, depth: 2
         }));
     }
 

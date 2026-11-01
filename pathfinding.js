@@ -107,6 +107,20 @@ export class Pathfinding{
         return this.#worldMap.blocked(wx, wy, wz, entity);
     }
 
+    /**
+     * La place au-dessus de cette case suffit-elle à la hauteur de l'entité ?
+     * Un plancher fermé ou un volume arrête la tête. walkable ne compte pas :
+     * il dit seulement si l'on peut marcher sur le cube.
+     */
+    #headroom(wx, wy, wz, entity){
+        if(entity === null) return true;
+        for(let z = wz + 1; z < wz + entity.height; z++){
+            const cube = this.findCube(wx, wy, z);
+            if(cube !== null && (!cube.floorOpen || cube.volumes.length > 0)) return false;
+        }
+        return true;
+    }
+
     /** Cette case a-t-elle déjà été explorée ? Réponse immédiate, quelle que soit la taille du monde. */
     visited(wx, wy, wz){
         return this.#visited.has(Pathfinding.#key(wx, wy, wz));
@@ -151,6 +165,7 @@ export class Pathfinding{
                 const cross = new Cross(from, cube, (x, y, z) => this.findCube(x, y, z));
                 if(!cross.crossable()) continue;
                 if(this.blocked(nx, ny, nz, entity)) continue;
+                if(!this.#headroom(nx, ny, nz, entity)) continue;
 
                 this.#visited.add(key);
                 const next = new PathNode(cube.x, cube.y, cube.z, node);

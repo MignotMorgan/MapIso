@@ -23,6 +23,7 @@ export class WorldMap{
     #maxElapsed = 250;
     #revision = 0;
     #entityRevision = 0;
+    #roomRevision = 0;
 
     /**
      * fromJSON lit : width, height, depth, name, version, cubes, players, entities, rooms.
@@ -47,6 +48,8 @@ export class WorldMap{
     get revision(){ return this.#revision; }
     /** Compteur qui change à chaque ajout, retrait ou remplacement des personnages et des entités. */
     get entityRevision(){ return this.#entityRevision; }
+    /** Compteur qui change à chaque ajout, retrait ou remplacement des pièces. */
+    get roomRevision(){ return this.#roomRevision; }
 
     // === TEMPS ===
     /**
@@ -86,10 +89,11 @@ export class WorldMap{
     }
 
     #measureElapsed(){
-        const now = Date.now();
+        // performance.now ne recule jamais, contrairement à l'heure de l'ordinateur.
+        const now = performance.now();
         const clock = this.#clock;
         if(clock.last === 0){ clock.last = now; clock.elapsed = 0; clock.time = 0; return 0; }
-        clock.elapsed = Math.min(now - clock.last, this.#maxElapsed);
+        clock.elapsed = Math.max(0, Math.min(now - clock.last, this.#maxElapsed));
         clock.time += clock.elapsed;
         clock.last = now;
         return clock.elapsed;
@@ -209,6 +213,7 @@ export class WorldMap{
         if (room !== null && (room instanceof Room)){
             if (room.id === "" || this.findRoom(room.id) !== null) throw new Error('room id "' + room.id + '" is empty or already used');
             this.rooms[this.rooms.length] = room;
+            this.#roomRevision++;
         }
     }
     findRooms(wx, wy, wz){
@@ -236,6 +241,7 @@ export class WorldMap{
         if (index !== -1){
             room = this.rooms[index];
             this.rooms.splice(index, 1);
+            this.#roomRevision++;
         }
         return room;
     }
@@ -309,6 +315,7 @@ export class WorldMap{
         }
         if( json.rooms != null ){
             this.#rooms = [];
+            this.#roomRevision++;
             for(let i = 0; i < json.rooms.length; i++) this.addRoom(FactoryWorld.instance.create(json.rooms[i]));
         }
     }

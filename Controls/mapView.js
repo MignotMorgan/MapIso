@@ -24,6 +24,8 @@ export class MapView extends Control{
     #openRooms = [];
     //roomsFrom : la case d'où openRooms a été calculé
     #roomsFrom = new Location();
+    //roomRevisionDrawn : révision des pièces au dernier calcul de openRooms
+    #roomRevisionDrawn = NaN;
     //createCubes : Flag indiquant qu'il faut traiter de nouveaux cubes
     #createCubes = false;
     //rebuildEntityDraws : il faut recréer les EntityDraw (carte, zoom, sprites)
@@ -82,10 +84,7 @@ export class MapView extends Control{
         if(this.#modified)
             this.rebuild();
 
-        // Le monde avance dans sa propre boucle : la vue constate le changement de case.
-        const entity = this.selectedEntity();
-        if(entity !== null && !entity.location.equals(this.#roomsFrom))
-            this.openRoomsFromSelected();
+        this.#refreshRooms();
 
         // La caméra d'abord : sinon createCubes se fait sur l'ancienne
         // location, et l'image suivante recolle — un glitch d'une frame.
@@ -103,6 +102,18 @@ export class MapView extends Control{
         }
         this.placeCases();
         this.placeEntityDraws();
+    }
+    /**
+     * Le monde avance dans sa propre boucle : la vue constate elle-même qu'il
+     * faut revoir les pièces (autre case, sélection disparue, pièces modifiées).
+     */
+    #refreshRooms(){
+        const entity = this.selectedEntity();
+        const revision = this.#worldMap === null ? -1 : this.#worldMap.roomRevision;
+        const same = entity === null ? this.#openRooms.length === 0 : entity.location.equals(this.#roomsFrom);
+        if(same && this.#roomRevisionDrawn === revision) return;
+        this.#roomRevisionDrawn = revision;
+        this.openRoomsFromSelected();
     }
     /** La caméra, le mode d'affichage ou la carte ont-ils changé depuis le dernier remplissage ? */
     viewChanged(){
@@ -216,6 +227,7 @@ export class MapView extends Control{
     set worldMap(value){
         this.#worldMap = value;
         this.#openRooms = [];
+        this.#roomRevisionDrawn = NaN;
         this.#createCubes = true;
         this.#rebuildEntityDraws = true;
     }
