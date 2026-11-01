@@ -417,7 +417,10 @@ export class MapView extends Control{
      */
     openRoomsFromSelected(){
         const entity = this.selectedEntity();
-        if(entity === null) this.#openRooms = [];
+        if(entity === null){
+            this.#openRooms = [];
+            this.#createCubes = true;
+        }
         else this.openRoomsFrom(entity.x, entity.y, entity.z);
     }
     /** Pièces contenant ce point : c'est la carte qui sait, on lui demande. */
