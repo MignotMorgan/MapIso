@@ -178,6 +178,7 @@ export class Pathfinding{
      * Donne l'ordre de marche à une entité.
      * Renvoie false si elle ne peut pas bouger ou si la destination est inaccessible ;
      * dans ce cas rien n'est modifié, l'entité reste sur place.
+     * Un pas commencé se termine : le nouveau trajet part de sa case d'arrivée.
      */
     moveTo(entity, wx, wy, wz){
         if(entity === null) return false;
@@ -187,7 +188,12 @@ export class Pathfinding{
         const node = this.search(wx, wy, wz, entity);
         if(node === null) return false;
 
-        return entity.walk(node.path());
+        const stride = entity.stride();
+        if(stride === null) return entity.walk(node.path());
+        const step = entity.entityMove.step;
+        entity.walk([stride.from, ...node.path()]);
+        entity.entityMove.step = step;
+        return true;
     }
 
     /** Les 26 offsets d'une case, construits une seule fois. */
