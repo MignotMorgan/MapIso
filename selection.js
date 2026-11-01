@@ -43,7 +43,7 @@ export class Selection{
         if(cube === null || mapView.worldMap === null) return false;
         const entity = this.selectedEntity();
         if(entity === null) return false;
-        return mapView.worldMap.goTo(entity.id, cube.x, cube.y, cube.z);
+        return mapView.worldMap.goTo(entity.id, cube.x, cube.y, cube.z, mapView.casePoint.adjustment);
     }
 
     /**

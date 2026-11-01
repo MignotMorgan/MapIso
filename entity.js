@@ -112,9 +112,14 @@ export class Entity{
         this.spriteAnimated = false;
     }
 
-    /** Lance l'entité sur un trajet déjà calculé, depuis le début. */
-    walk(path){
-        if(this.entityMove === null || !this.entityMove.start(path)) return false;
+    /**
+     * Lance l'entité sur un trajet déjà calculé, depuis le début.
+     * adjustment : le point visé dans la dernière case. Par défaut, le décalage ne change pas.
+     */
+    walk(path, adjustment = null){
+        if(this.entityMove === null) return false;
+        this.entityMove.adjustment.copy(adjustment ?? this.adjustment);
+        if(!this.entityMove.start(path)) return false;
         this.spriteAnimated = true;
         return true;
     }

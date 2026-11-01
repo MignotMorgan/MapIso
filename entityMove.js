@@ -90,9 +90,10 @@ export class Stride{
  * speed  : durée d'un pas d'une case, en millisecondes.
  * index  : le pas en cours, 0 étant le premier.
  * step   : millisecondes déjà écoulées dans ce pas-là.
+ * adjustment : le point visé dans la dernière case, en % de sizeCase.
  *
- * progress(elapsed, entity) consomme le temps et pose la case, la direction
- * et la fin de trajet sur l'entité. Entity.tick lui délègue tout le déplacement.
+ * progress(elapsed, entity) consomme le temps et pose la case, la direction,
+ * le décalage et la fin de trajet sur l'entité. Entity.tick lui délègue tout le déplacement.
  */
 export class EntityMove{
 
@@ -156,6 +157,14 @@ export class EntityMove{
         return this.speed * Math.max(1, this.path[index].ground(this.path[index + 1]));
     }
 
+    /** Millisecondes restantes jusqu'à la destination. */
+    remaining(){
+        let remaining = -this.step;
+        for(let i = this.index; i < this.path.length - 1; i++)
+            remaining += this.duration(i);
+        return Math.max(0, remaining);
+    }
+
     /** Le pas en cours, ou null si le trajet est fini ou inexistant. */
     stride(){
         if(!this.walking()) return null;
@@ -175,6 +184,7 @@ export class EntityMove{
     progress(elapsed, entity){
         if(!this.walking()) return false;
 
+        const remaining = this.remaining();
         this.step += elapsed;
 
         // Une image lente peut franchir plusieurs cases d'un coup.
@@ -184,6 +194,7 @@ export class EntityMove{
             this.index++;
             duration = this.duration(this.index);
         }
+        this.#glide(entity, remaining > 0 ? this.remaining() / remaining : 0);
 
         if(this.index >= this.path.length - 1){
             if(entity != null && this.destination !== null)
@@ -203,6 +214,15 @@ export class EntityMove{
         entity.direction = stride.direction;
         entity.location.copy(stride.to);
         return true;
+    }
+
+    /** Rapproche le décalage de l'entité du point visé. kept : la part d'écart qui reste. */
+    #glide(entity, kept){
+        if(entity == null) return;
+        const target = this.adjustment;
+        const adjustment = entity.adjustment;
+        adjustment.set(target.x + (adjustment.x - target.x) * kept,
+                       target.y + (adjustment.y - target.y) * kept);
     }
 
     toJSON(json){

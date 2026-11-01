@@ -179,8 +179,10 @@ export class Pathfinding{
      * Renvoie false si elle ne peut pas bouger ou si la destination est inaccessible ;
      * dans ce cas rien n'est modifié, l'entité reste sur place.
      * Un pas commencé se termine : le nouveau trajet part de sa case d'arrivée.
+     * adjustment : le point visé dans la dernière case. S'il est dans la case
+     * occupée, l'entité y glisse le temps d'un pas.
      */
-    moveTo(entity, wx, wy, wz){
+    moveTo(entity, wx, wy, wz, adjustment = null){
         if(entity === null) return false;
         if(!entity.canMove) return false;
         if(entity.entityMove === null) return false;   // pas de buffer de déplacement
@@ -188,10 +190,15 @@ export class Pathfinding{
         const node = this.search(wx, wy, wz, entity);
         if(node === null) return false;
 
+        const path = node.path();
         const stride = entity.stride();
-        if(stride === null) return entity.walk(node.path());
+        if(stride === null){
+            if(path.length === 1 && adjustment !== null && !entity.adjustment.equals(adjustment))
+                path[1] = path[0].clone();
+            return entity.walk(path, adjustment);
+        }
         const step = entity.entityMove.step;
-        entity.walk([stride.from, ...node.path()]);
+        entity.walk([stride.from, ...path], adjustment);
         entity.entityMove.step = step;
         return true;
     }

@@ -73,12 +73,12 @@ export class WorldMap{
     }
     /**
      * Intention « aller ici ». Seule la carte pathfind et lance la marche :
-     * la vue et le futur client n'ont qu'à envoyer l'id et la case.
+     * la vue et le futur client n'ont qu'à envoyer l'id, la case et le point visé dedans.
      */
-    goTo(id, wx, wy, wz){
+    goTo(id, wx, wy, wz, adjustment = null){
         const entity = this.findEntity(id);
         if(entity === null || !entity.canMove) return false;
-        return new Pathfinding(entity.x, entity.y, entity.z, this).moveTo(entity, wx, wy, wz);
+        return new Pathfinding(entity.x, entity.y, entity.z, this).moveTo(entity, wx, wy, wz, adjustment);
     }
 
     #measureElapsed(){
