@@ -16,6 +16,10 @@ export class Cube{
     #westOpen = true;
     #walkable = true;
 
+    constructor(){
+        if(arguments.length > 0) throw new Error('Cube takes no options: use FactoryWorld.instance.create');
+    }
+
     get x(){ return this.#x; }
     set x(value){ this.#x = value; }
     get y(){ return this.#y; }

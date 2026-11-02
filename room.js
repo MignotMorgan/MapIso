@@ -23,6 +23,10 @@ export class Room{
     #height = 1;
     #depth = 1;
 
+    constructor(){
+        if(arguments.length > 0) throw new Error('Room takes no options: use FactoryWorld.instance.create');
+    }
+
     get id(){ return this.#id; }
     set id(value){ this.#id = value; }
     get x(){ return this.#x; }

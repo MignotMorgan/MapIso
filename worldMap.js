@@ -8,6 +8,8 @@ export class WorldMap{
 
     static type = "WorldMap";
     static version = 1;
+    // Nombre maximal de cases de la grille : au-delà, sa création gèlerait la page.
+    static maxCells = 4000000;
 
     #name = "";
     #width = 0;
@@ -24,6 +26,10 @@ export class WorldMap{
     #revision = 0;
     #entityRevision = 0;
     #roomRevision = 0;
+
+    constructor(){
+        if(arguments.length > 0) throw new Error('WorldMap takes no options: use FactoryWorld.instance.create');
+    }
 
     /**
      * fromJSON lit : width, height, depth, name, version, cubes, players, entities, rooms.
@@ -85,6 +91,8 @@ export class WorldMap{
     goTo(id, wx, wy, wz, adjustment = null){
         const entity = this.findEntity(id);
         if(entity === null || !entity.canMove) return false;
+        if(!this.contains(wx, wy, wz)) return false;
+        if(adjustment !== null && !(Number.isFinite(adjustment.x) && Number.isFinite(adjustment.y))) return false;
         return new Pathfinding(entity.x, entity.y, entity.z, this).moveTo(entity, wx, wy, wz, adjustment);
     }
 
@@ -101,7 +109,8 @@ export class WorldMap{
 
     // === GRILLE ===
     contains(x, y, z){
-        return 0 <= x && x < this.width
+        return Number.isInteger(x) && Number.isInteger(y) && Number.isInteger(z)
+            && 0 <= x && x < this.width
             && 0 <= y && y < this.height
             && 0 <= z && z < this.depth;
     }
@@ -128,6 +137,7 @@ export class WorldMap{
     addPlayer(entity){
         if (entity !== null && (entity instanceof Entity)){
             if (entity.id === "" || this.findEntity(entity.id) !== null) throw new Error('entity id "' + entity.id + '" is empty or already used');
+            this.#checkPosition(entity);
             entity.worldMap = this;
             this.players[this.players.length] = entity;
             this.#entityRevision++;
@@ -136,6 +146,7 @@ export class WorldMap{
     addEntity(entity){
         if (entity !== null && (entity instanceof Entity)){
             if (entity.id === "" || this.findEntity(entity.id) !== null) throw new Error('entity id "' + entity.id + '" is empty or already used');
+            this.#checkPosition(entity);
             entity.worldMap = this;
             this.entities[this.entities.length] = entity;
             this.#entityRevision++;
@@ -285,13 +296,23 @@ export class WorldMap{
                     if(cube !== null)
                         json.cubes[json.cubes.length] = cube.toJSON();
                     }
-        json.players = WorldMap.#toJsonList(this.players);
-        json.entities = WorldMap.#toJsonList(this.entities);
-        json.rooms = WorldMap.#toJsonList(this.rooms);
+        json.players = this.#toJsonList(this.players);
+        json.entities = this.#toJsonList(this.entities);
+        json.rooms = this.#toJsonList(this.rooms);
         return json;
     }
 
     fromJSON(json){
+        // Tout est vérifié avant d'écrire : une erreur ne laisse pas une carte à moitié chargée.
+        this.#checkSize('width', json.width);
+        this.#checkSize('height', json.height);
+        this.#checkSize('depth', json.depth);
+        const cells = (json.width ?? this.width) * (json.height ?? this.height) * (json.depth ?? this.depth);
+        if(cells > WorldMap.maxCells) throw new Error('WorldMap has too many cells: ' + cells + ' (maximum ' + WorldMap.maxCells + ')');
+        this.#checkPositions(json.cubes);
+        this.#checkPositions(json.players);
+        this.#checkPositions(json.entities);
+
         let grid = false;
         if (json.version != null) this.#version = json.version;
         if( json.name != null ) this.name = json.name;
@@ -320,7 +341,25 @@ export class WorldMap{
         }
     }
     
-    static #toJsonList(list){
+    #checkSize(name, value){
+        if(value != null && !(Number.isInteger(value) && value > 0))
+            throw new Error('WorldMap ' + name + ' must be a positive integer: ' + value);
+    }
+
+    #checkPositions(list){
+        if(list == null) return;
+        for(let i = 0; i < list.length; i++) this.#checkPosition(list[i]);
+    }
+
+    /** Le monde se compte en cases entières. Une clé absente vaut 0 : elle reste permise. */
+    #checkPosition(item){
+        if((item.x != null && !Number.isInteger(item.x))
+            || (item.y != null && !Number.isInteger(item.y))
+            || (item.z != null && !Number.isInteger(item.z)))
+            throw new Error('position must use whole cells: ' + item.x + ', ' + item.y + ', ' + item.z);
+    }
+
+    #toJsonList(list){
         const json = [];
         for(let i = 0; i < list.length; i++)
             if(list[i] != null) json[json.length] = list[i].toJSON();

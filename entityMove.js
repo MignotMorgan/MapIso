@@ -108,6 +108,10 @@ export class EntityMove{
     #sprite = null;
     #adjustment = new Point();
 
+    constructor(){
+        if(arguments.length > 0) throw new Error('EntityMove takes no options: use FactoryWorld.instance.create');
+    }
+
     get id(){ return this.#id; }
     set id(value){ this.#id = value; }
     get path(){ return this.#path; }

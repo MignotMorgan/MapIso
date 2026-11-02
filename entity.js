@@ -35,6 +35,10 @@ export class Entity{
     #spriteStand = null;       // sprite idle, repris quand l'anim se termine
     #spriteAnimated = false;
 
+    constructor(){
+        if(arguments.length > 0) throw new Error('Entity takes no options: use FactoryWorld.instance.create');
+    }
+
     get id(){ return this.#id; }
     set id(value){ this.#id = value; }
     /** La position dans le monde. x, y et z en sont les raccourcis de lecture. */
